@@ -1,0 +1,119 @@
+List of options
+BASE
+    # basic parameters
+dataroot - path to image data root directory (should have subfolder(s) with name(s) of dataset(s))
+name experiment_name - name of the experiment. It decides where to store samples and models
+gpu_ids - gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU
+checkpoints_dir ./checkpoints - models are saved here
+        # model parameters
+model cycle_gan - chooses which model to use. [cycle_gan | pix2pix | test | colorization]
+input_nc - # of input image channels: 3 for RGB and 1 for grayscale
+output_nc - # of output image channels: 3 for RGB and 1 for grayscale
+ngf - # of gen filters in the last conv layer
+ndf - # of discrim filters in the first conv layer
+netD basic - specify discriminator architecture [basic | n_layers | pixel]. The basic model is a 70x70 PatchGAN. n_layers allows you to specify the layers in the discriminator
+netG resnet_9blocks - specify generator architecture [resnet_9blocks | resnet_6blocks | unet_256 | unet_128]
+n_layers_D - only used if netD==n_layers
+norm instance - instance normalization or batch normalization [instance | batch | none]
+init_type normal - network initialization [normal | xavier | kaiming | orthogonal]
+init_gain - scaling factor for normal, xavier and orthogonal.
+no_dropout - no dropout for the generator
+        # dataset parameters
+dataset', sketchy_database - Name of the folder (should have subfolders trainA, trainB, valA, valB, etc)
+dataset_mode unaligned - chooses how datasets are loaded. [unaligned | aligned | single | colorization]
+direction AtoB - AtoB or BtoA
+serial_batches', action='store_true - if true, takes images in order to make batches, otherwise takes them randomly
+num_threads - # threads for loading data
+batch_size - input batch size
+load_size - scale images to this size
+crop_size - then crop to this size
+max_dataset_size - Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.
+preprocess resize_and_crop - scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]
+no_flip - if specified, do not flip the images for data augmentation
+display_winsize - display window size for both visdom and HTML
+        # additional parameters
+epoch latest - which epoch to load? set to latest to use latest cached model
+load_iter - which iteration to load? if load_iter > 0, the code will load models by iter_[load_iter]; otherwise, the code will load models by [epoch]
+verbose', action='store_true - if specified, print more debugging information
+suffix',  help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}
+TRAIN
+# visdom and HTML visualization parameters
+display_freq - frequency of showing training results on screen
+display_ncols - if positive, display all images in a single visdom web panel with certain number of images per row.
+display_id - window id of the web display
+display_server "http://localhost" - visdom server of the web display
+display_env main - visdom display environment name (default is "main")
+display_port - visdom port of the web display
+update_html_freq - frequency of saving training results to html
+print_freq - frequency of showing training results on console
+no_html - do not save intermediate training results to [opt.checkpoints_dir]/[opt.name]/web/
+        # network saving and loading parameters
+save_latest_freq - frequency of saving the latest results
+save_epoch_freq - frequency of saving checkpoints at the end of epochs
+save_by_iter - whether saves model by iteration
+continue_train - continue training: load the latest model
+epoch_count - the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...
+phase train - train, val, test, etc
+        # training parameters
+niter - # of iter at starting learning rate
+niter_decay - # of iter to linearly decay learning rate to zero
+beta1 - momentum term of adam
+lr - initial learning rate for adam
+gan_mode lsgan - the type of GAN objective. [vanilla| lsgan | wgangp]. vanilla GAN loss is the cross-entropy objective used in the original GAN paper.
+pool_size - the size of image buffer that stores previously generated images
+lr_policy linear - learning rate policy. [linear | step | plateau | cosine]
+lr_decay_iters - multiply by a gamma every lr_decay_iters iterations
+
+################################### RUNNING NOTES ###################################
+
+https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+
+- If you get the following error, Need to start visdom prior to running the code:
+ERROR:visdom:[WinError 10061] No connection could be made because the target machine actively refused it
+- How to start visdom:
+> visdom 
+# or 
+> python -m visdom.server
+
+Defaults: 
+
+#################################### CHANGE NOTES ###################################
+06/05/2019 - options/base_options.py: Made dataroot optional.  Provided a default in parse() that uses os.join() with my location in the Windows OS and Linux shell, making it portable to run on either OS.  Made this point to the base folder for all of the datasets, rather than inside the dataset folder itself.  This will couple with a new dataset option to get the full path.
+
+06/06/2019 - options/base_options.py: Added dataset option, which will be used to load the full path in conjunction with dataroot and isTrain.
+
+06/06/2019 - options/base_options.py: Changed default dataset_mode from 'unaligned' to 'aligned'
+
+06/06/2019 - options/base_options.py: Changed default load_size and crop_size to 128. Note that crop has to be < load.
+                - According to issue 174, At 256x256 resolution it needs 4010 MB exactly on GTX 745 
+                
+06/08/2019 - options/base_options.py: McGonigle changed default checkpoints_dir (removed default and set dir in parse())
+
+06/08/2019 - options/base_options.py: McGonigle added function to provide a default_experiment_name
+
+06/08/2019 - util/util.py: added date_time_stamp function for default_experiment_name function
+
+06/08/2019 - options/base_options.py: changed default direction to "BtoA"
+
+06/08/2019 - util/visualizer.py: changed default refresh rate for HTML object to 0 from 1
+
+06/08/2019 - options/train_options.py: niter + niter_decay is epochs to train, 
+                - with the learning rate decaying to zero over niter_decay epochs
+                - Changed defaults to 2 and 2, respectively
+
+06/08/2019 - Created TorchCanny, a function that transforms a torch image array into a canny edge representation of 
+            itself. Added a base_options option for canny, type bool to turn this on.  The idea is to run a canny edge
+            detection on the input image so that it is closer to the desired output.
+            Function in: util/util.py
+            Implemented in: data/aligned_dataset.py
+            
+6/17/2019 - STRIPPING ALL VISDOM OUT.  Converted visualizer:Visualizer to logger:Logger for logging.  Got rid of util/html.py.
+
+6/17/2019 - train_options.py: added save_sample_freq option
+		util/util.py: added save_sample() function; saves set of images at interval specified by args
+		models/base_model: added get_current_name() function; gets basename of current image, so save_sample can  provide image name for reference
+
+
+
+
+

@@ -1,0 +1,61 @@
+TrainOptions.parse()
+    BaseOptions.initialize()
+    BaseOptions.gather_options()
+        models.get_option_setter()              # arg: [cycle_gan | pix2pix | test | colorization]
+            models.find_model_using_name()      # arg: [cycle_gan | pix2pix | test | colorization] - import models.pix2pix.py
+                importlib.import_module()       # arg like: models.pix2pix_model
+            model_class[Pix2Pix].modify_commandline_options
+                parser.set_defaults(norm='batch', netG='unet_256', dataset_mode='aligned')
+                parser.set_defaults(pool_size=0, gan_mode='vanilla')
+                parser.add_argument('--lambda_L1', type=float, default=100.0, help='weight for L1 loss')
+        data.get_option_setter()                # arg: [unaligned | aligned | single | colorization]
+            data.find_dataset_using_name()      # arg: [unaligned | aligned | single | colorization]
+                importlib.import_module()       # arg like: data.aligned_dataset
+            dataset_class[aligned].modify_commandline_options
+                self.dir_AB = os.path.join(opt.dataroot, opt.phase)  # get the image directory
+                self.AB_paths = sorted(make_dataset(self.dir_AB, opt.max_dataset_size))  # get image paths
+                self.input_nc = self.opt.output_nc if self.opt.direction == 'BtoA' else self.opt.input_nc
+                self.output_nc = self.opt.input_nc if self.opt.direction == 'BtoA' else self.opt.output_nc
+    BaseOptions.print_options()
+    
+create_dataset(opt)
+    data.CustomDatasetDataLoader(opt)
+        data.find_dataset_using_name()          # arg: [unaligned | aligned | single | colorization] 
+            importlib.import_module()           # arg like: data.aligned_dataset
+            
+models.create_model()                           # arg: opt
+    find_model_using_name(opt.model)            # Returns instance of model initialized with opt params
+   
+models.setup(opt)   # Defaults to BaseModel.setup - 
+    models.networks.get_scheduler()             # "schedules" learning rate policy
+    models.BaseModel.load_networks()            # Load all the networks from the disk via nn.Module.load_state_dict 
+    models.BaseModel.print_networks()           # Outputs the network parameters
+
+util.visualizer.Visualizer(opt)                 # display/save images and print/save logging information
+    # Connect to visdom server
+    # Create web directory for html/images
+    
+# Training loop
+for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+    for i, data in enumerate(dataset):
+        model.set_input(data)         # unpack data from dataset and apply preprocessing
+            # pix2pix_model.py: assign real_A and real_B data
+        model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
+            ### pix2pix_model.py optimize_parameters loop below:
+            self.forward()                   # compute fake images: G(A)
+            # update D
+            self.set_requires_grad(self.netD, True)  # enable backprop for D
+            self.optimizer_D.zero_grad()     # set D's gradients to zero
+            self.backward_D()                # calculate gradients for D
+            self.optimizer_D.step()          # update D's weights
+            # update G
+            self.set_requires_grad(self.netD, False)  # D requires no gradients when optimizing G
+            self.optimizer_G.zero_grad()        # set G's gradients to zero
+            self.backward_G()                   # calculate graidents for G
+            self.optimizer_G.step()             # udpate G's weights
+        ### NOTE: print_freq and display_freq are based on total_iters, which counts number of images, not epochs
+        util.visualizer.display_current_results # If iter % display_freq == 0
+        util.visualizer.plot_current_losses     # If iter % print_freq == 0
+        model.save_networks(save_suffix)        # If iter % save_latest_freq == 0
+    model.save_networks(save_suffix)        # If epoch % save_epoch_freq == 0
+    model.update_learning_rate()
