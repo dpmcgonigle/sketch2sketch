@@ -38,7 +38,7 @@ class SingleDataset(BaseDataset):
         #   McGonigle performing Canny Edge detection on 
         #
         if self.canny:
-            B = util.TorchCanny(B)
+            A = util.TorchCanny(A)
         
         return {'A': A, 'A_paths': A_path}
 
