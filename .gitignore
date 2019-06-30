@@ -8,6 +8,7 @@
 *.ipynb		# Jupyter Notebooks
 .ipynb*/*	# Jupyter Notebook cache
 __pycache__
+stitch.py   # Used to fuse (real, edge, pred, target) images
 
 # Compiled source #
 ###################
