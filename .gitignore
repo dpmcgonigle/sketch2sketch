@@ -6,7 +6,7 @@
 # Misc #
 ########
 *.ipynb		# Jupyter Notebooks
-.ipynb*		# Jupyter Notebook cache
+.ipynb*/*	# Jupyter Notebook cache
 __pycache__
 
 # Compiled source #
