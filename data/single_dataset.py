@@ -1,7 +1,7 @@
 from data.base_dataset import BaseDataset, get_transform
 from data.image_folder import make_dataset
 from PIL import Image
-
+from util import util
 
 class SingleDataset(BaseDataset):
     """This dataset class can load a set of images specified by the path --dataroot /path/to/data.
