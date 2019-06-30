@@ -47,7 +47,7 @@ def diagnose_network(net, name='network'):
     print(mean)
 
 
-def save_sample(visuals, basename, img_dir, epoch, total_iters):
+def save_sample(visuals, basename, img_dir, epoch=None, total_iters=None):
     """Save sample images from model at frequency determined by command-line args
     
     Parameters:
@@ -56,7 +56,12 @@ def save_sample(visuals, basename, img_dir, epoch, total_iters):
     """
     for label, image in visuals.items():
         image_numpy = tensor2im(image)
-        img_path = os.path.join(img_dir, 'epoch_%.3d_iter_%.6d_%s_%s.png' % (epoch, total_iters, label, basename))
+        
+        # Save image without epoch or total iters
+        if epoch is None and total_iters is None:
+            img_path = os.path.join(img_dir, '%s_%s.png' % (label, basename))
+        else:
+            img_path = os.path.join(img_dir, 'epoch_%.3d_iter_%.8d_%s_%s.png' % (epoch, total_iters, label, basename))
         save_image(image_numpy, img_path)
 
 def save_image(image_numpy, image_path):
@@ -118,39 +123,67 @@ def date_time_stamp():
     
 #
 #   McGonigle created function to perform Canny edge detection on pytorch tensor
+#   6/29/2019 - Updated to handle single images and batches, RGB and grayscale
 #
 def TorchCanny(x):
     """
-    returns a torch tensor Canny edge detection on a torch tensor input.
-    input shape should be (num_C x H x W)
+    returns a torch tensor Canny edge detection on a torch tensor input.  Can be used on batches.
+    input can be in shape (num_imgs X num_channels X height X width) or  (num_channels X height X width)
+    output will match input shape
     """
-        
-    # Convert to Numpy
-    img = x.numpy()
-    dtype = img.dtype
-
-    # Transpose from (c, h, w) to (h, w, c)
-    img = img.transpose(1,2,0)
+    # Expand to include dimension representing number of images for for loop
+    dims = x.ndimension()
+    if dims == 3:
+        x = x.unsqueeze(0)
     
-    # Convert from (-1.0, 1.0) to (0, 255)
-    img = ((img+1) / 2 * 255).round().astype(np.uint8)
-        
-    # Canny -> BGR2RGB -> bitwise_not
-    img = cv2.bitwise_not (
-        cv2.cvtColor (
-            cv2.Canny (img , 100 , 200),
-            cv2.COLOR_BGR2RGB
-        )
-    )
+    # Get number of images and channels
+    n_imgs = x.shape[0]
+    n_channels = x.shape[1]
     
-    # Convert from (0, 255) to (-1.0, 1.0)
-    img = ((img / 255.0 * 2) - 1).round().astype(dtype)
+    arr = np.empty_like(x.numpy())
     
-    # Transpose from (h, w, c) to (c, h, w)
-    img = img.transpose(2,0,1)
+    # Loop through images in batch
+    for i in range(n_imgs):
         
+        # Convert to Numpy
+        img = x[i].numpy()
+        dtype = img.dtype
+        
+        # Transpose from (c, h, w) to (h, w, c)
+        img = img.transpose(1,2,0)
+       
+        # Convert from (-1.0, 1.0) to (0, 255)
+        img = ((img+1) / 2 * 255).round().astype(np.uint8)
+        
+        # Canny -> BGR2RGB or keep grayscale -> bitwise_not
+        # Edge detection
+        img = cv2.Canny (img , 100 , 200)
+        
+        # Convert to color or keep grayscale depending on n_channels
+        if n_channels == 3:
+            img = cv2.cvtColor (img, cv2.COLOR_BGR2RGB)
+        
+        # bitwise not so the background is white and contours are black
+        img = cv2.bitwise_not (img)
+        
+        # Canny and bitwise not will squeeze the single dimension if it is a grayscale
+        if n_channels == 1:
+            img = np.expand_dims(img, -1)
+            
+        # Convert from (0, 255) to (-1.0, 1.0)
+        img = ((img / 255.0 * 2) - 1).round().astype(dtype)
+        
+        # Transpose from (h, w, c) to (c, h, w)
+        img = img.transpose(2,0,1)
+        
+        # Add image to arr
+        arr[i] = img
+    
+    if dims == 3:
+        arr = arr.squeeze(0)
+    
     # Put it back into the Torch Tensor
-    return torch.FloatTensor(img)
+    return torch.FloatTensor(arr)
     
 #
 #   McGonigle used the following function to test the output of the above TorchCanny function
@@ -160,7 +193,7 @@ def DisplayTorchImg(x):
     use plt.imshow to display a torch image
     This was produced in jupyter notebook to test the TorchCanny method
     """
-                
+    
     # Convert to Numpy
     img = x.numpy()
 
@@ -183,4 +216,4 @@ def DisplayTorchImg(x):
     
     
 def get_img_dir(opt):
-    return os.path.join(opt.checkpoints_dir, opt.name, "images")
+    return os.path.join(opt.checkpoints_dir, opt.name, opt.phase)

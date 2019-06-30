@@ -33,6 +33,13 @@ class SingleDataset(BaseDataset):
         A_path = self.A_paths[index]
         A_img = Image.open(A_path).convert('RGB')
         A = self.transform(A_img)
+        
+        #
+        #   McGonigle performing Canny Edge detection on 
+        #
+        if self.canny:
+            B = util.TorchCanny(B)
+        
         return {'A': A, 'A_paths': A_path}
 
     def __len__(self):
