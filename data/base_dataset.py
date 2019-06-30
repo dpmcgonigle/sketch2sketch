@@ -28,7 +28,15 @@ class BaseDataset(data.Dataset, ABC):
         """
         self.opt = opt
         self.root = opt.dataroot
-
+        
+        #
+        #   McGonigle added option to perform Canny edge detection on inputs
+        #
+        if opt.canny:
+            self.canny=True
+        else:
+            self.canny=False
+            
     @staticmethod
     def modify_commandline_options(parser, is_train):
         """Add new dataset-specific options, and rewrite default values for existing options.

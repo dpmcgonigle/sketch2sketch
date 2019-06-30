@@ -77,6 +77,7 @@ ERROR:visdom:[WinError 10061] No connection could be made because the target mac
 
 Defaults: 
 
+
 #################################### CHANGE NOTES ###################################
 06/05/2019 - options/base_options.py: Made dataroot optional.  Provided a default in parse() that uses os.join() with my location in the Windows OS and Linux shell, making it portable to run on either OS.  Made this point to the base folder for all of the datasets, rather than inside the dataset folder itself.  This will couple with a new dataset option to get the full path.
 
@@ -113,7 +114,19 @@ Defaults:
 		util/util.py: added save_sample() function; saves set of images at interval specified by args
 		models/base_model: added get_current_name() function; gets basename of current image, so save_sample can  provide image name for reference
 
-
+6/22/2019 - Ran CycleGan for 24 epochs (was running for longer, but got booted).  Initial results look like they 
+            could be promising, but definitely work to do.  One issue is that the number of channels being output is 3.
+            I will modify this in the future to shoot for 1, since the edge map and target can be grayscale.
+            
+6/24/2019 - Ran pix2pix for 150 epochs.  This was spectacularly dissappointing, as the images produced were all blank.
+            Looking at the training log, Generator loss remained high, which was likely the problem.  I will try to 
+            tweak architecture and hyperparameters, but CycleGAN may be better-suited to this task since it is designed 
+            for distributions that do not have a 1:1 mapping.
+            
+6/29/2019 - Updated test.py and other files to be able to generate images with a pre-trained model.
+            Created a script that stitches the real image, edge map, prediction and target image into a 4 x 1 image.
+            Updated TorchCanny to be able to accept batches or single images, and RGB or grayscale images.
+            Ran CycleGAN with resnet_9blocks Generator and U-Net discriminator for 100 epochs (80 / 20-decay)
 
 
 
