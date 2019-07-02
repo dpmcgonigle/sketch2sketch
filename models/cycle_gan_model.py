@@ -51,8 +51,16 @@ class CycleGANModel(BaseModel):
             opt (Option class)-- stores all the experiment flags; needs to be a subclass of BaseOptions
         """
         BaseModel.__init__(self, opt)
+        
+        # McGonigle building in WGAN-GP mode for CycleGAN 7/2/2019
+        self.gan_mode = opt.gan_mode
+        self.lambda_gp = opt.lambda_gp
+        
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
         self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
+        if self.gan_mode == "wgangp":
+            self.loss_names += ['GP_A', 'GP_B']
+            
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
         visual_names_B = ['real_B', 'fake_A', 'rec_B']
@@ -74,10 +82,6 @@ class CycleGANModel(BaseModel):
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
         self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, opt.norm,
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
-
-        # McGonigle building in WGAN-GP mode for CycleGAN 7/2/2019
-        self.gan_mode = opt.gan_mode
-        self.lambda_gp = opt.lambda_gp
         
         if self.isTrain:  # define discriminators
             self.netD_A = networks.define_D(opt.output_nc, opt.ndf, opt.netD,
@@ -164,19 +168,23 @@ class CycleGANModel(BaseModel):
         gradient_penalty, gradients = networks.cal_gradient_penalty(
             netD, real, fake, self.device,lambda_gp=self.lambda_gp
         )
+        # Track gradient penalty
+        GP = float(gradient_penalty)
         gradient_penalty.backward(retain_graph=True)
         
         # Combined loss and calculate gradients - does this need to be multiplied by 0.5 like orig line?
         # loss_D = (loss_D_real + loss_D_fake) * 0.5
         loss_D = (loss_D_real + loss_D_fake + gradient_penalty)
-        loss_D.backward()
-        return loss_D
+        loss_D.backward(retain_graph=True)
+        return loss_D, GP
         
     def backward_D_A(self):
         """Calculate GAN loss for discriminator D_A"""
         fake_B = self.fake_B_pool.query(self.fake_B)
         if self.gan_mode == "wgangp":
-            self.loss_D_A = self.backward_D_wgangp(self.netD_A, self.real_B, fake_B)
+            self.loss_D_A, GP = self.backward_D_wgangp(self.netD_A, self.real_B, fake_B)
+            # Track gradient penalty
+            self.loss_GP_A = GP
         else:
             self.loss_D_A = self.backward_D_basic(self.netD_A, self.real_B, fake_B)
 
@@ -184,7 +192,9 @@ class CycleGANModel(BaseModel):
         """Calculate GAN loss for discriminator D_B"""
         fake_A = self.fake_A_pool.query(self.fake_A)
         if self.gan_mode == "wgangp":
-            self.loss_D_B = self.backward_D_wgangp(self.netD_B, self.real_A, fake_A)
+            self.loss_D_B, GP = self.backward_D_wgangp(self.netD_B, self.real_A, fake_A)
+            # Track gradient penalty
+            self.loss_GP_B = GP
         else:
             self.loss_D_B = self.backward_D_basic(self.netD_B, self.real_A, fake_A)
 
