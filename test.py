@@ -45,6 +45,8 @@ if __name__ == '__main__':
     model.setup(opt)               # regular setup: load and print networks; create schedulers
 
     img_dir = util.get_img_dir(opt)
+    #if not os.path.isdir(img_dir):
+    #    os.makedirs(img_dir)
 
     # test with eval mode. This only affects layers like batchnorm and dropout.
     # For [pix2pix]: we use batchnorm and dropout in the original pix2pix. You can experiment it with and without eval() mode.
