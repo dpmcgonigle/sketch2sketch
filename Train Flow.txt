@@ -36,7 +36,7 @@ util.visualizer.Visualizer(opt)                 # display/save images and print/
     # Create web directory for html/images
     
 # Training loop
-for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+for epoch in range(opt.start_epoch, opt.niter + opt.niter_decay + 1):
     for i, data in enumerate(dataset):
         model.set_input(data)         # unpack data from dataset and apply preprocessing
             # pix2pix_model.py: assign real_A and real_B data

@@ -8,7 +8,9 @@
 *.ipynb		# Jupyter Notebooks
 .ipynb*/*	# Jupyter Notebook cache
 __pycache__
-stitch.py   # Used to fuse (real, edge, pred, target) images
+stitch.py   	# Used to fuse (real, edge, pred, target) validation images
+stitch_train.py # Used to fuse [realimg, real_A, fake_A, real_B, fake_B] images from training
+plot_loss.py	# Makes graph of all losses
 
 # Compiled source #
 ###################
