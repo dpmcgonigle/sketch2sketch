@@ -58,7 +58,10 @@ class AlignedDataset(BaseDataset):
         #   McGonigle performing Canny Edge detection on 
         #
         if self.canny:
-            B = util.TorchCanny(B)
+            if self.direction == 'BtoA':
+                B = util.TorchCanny(B)
+            else:
+                A = util.TorchCanny(A)
 
         return {'A': A, 'B': B, 'A_paths': AB_path, 'B_paths': AB_path}
 
