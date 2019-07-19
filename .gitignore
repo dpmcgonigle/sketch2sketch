@@ -11,6 +11,7 @@ __pycache__
 stitch.py   	# Used to fuse (real, edge, pred, target) validation images
 stitch_train.py # Used to fuse [realimg, real_A, fake_A, real_B, fake_B] images from training
 plot_loss.py	# Makes graph of all losses
+expand_data.py	# expands the dataset out by a certain amount
 
 # Compiled source #
 ###################
