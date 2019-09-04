@@ -1,8 +1,24 @@
 #! /usr/bin/env python
 """
-Testing out the format of datasets.
-run with -i option to keep interpreter open
-ex: python -i data_tester.py (args)
+    expand_data.py
+
+    This program will take a dataset and:
+        (1) augment the images with:
+            - Horizontal and Vertical flips (one or the other)
+            - Rotations
+            - Translations 
+            - Top and bottom hat transforms (one or the other)
+            - Random Gaussian and Salt & Pepper Noise (one or the other)
+        (2) expand the dataset by a multiplier (e.g. 1,000 image dataset becomes 2,000 with #2)
+
+    See OPTIONS and FUNCTIONS sections for lists of each.
+
+    Examples:   (d) means already a default
+        (expand a dataset by 5X, performing each augmentation at a rate of 40%; 40% translate, 40% noise, 40% flip, etc)
+        ./expand_dataset.py --dataset_name <dataset> --dataset_multiplier 5 --augmentation_threshold 0.4 --image_type grayscale
+        (expand a dataset by 2X, only on png images and only performing rotations at a rate of 100%
+        ./expand_dataset.py --dataset_name <dataset> --augmentation_threshold 1.0 --ext png --translate false --tophat false --noise false --flip false
+
 """
 import argparse
 import os, sys
@@ -75,10 +91,10 @@ def get_options():
     parser.add_argument('--aligned', type=str2bool, default=True, help="If pictures are attached, select this option")
     parser.add_argument('--dataset', type=str, default="photo_sketching", help="Dataset - should have a <opt.phase> directory in it")
     parser.add_argument('--phase', type=str, default="train", help="train, test, val, etc - should be a directory in data_dir")
-    parser.add_argument('--ext', type=str, help="extension (jpg, png, gif, etc)")
+    parser.add_argument('--ext', type=str, help="extension (jpg, png, gif, etc -- optional)")
     parser.add_argument('--img_width', type=int, default=256, help="used to split aligned images")
-    parser.add_argument('--dataset_multiplier', default=5, type=int, help="how many total images per original in the resulting dataset")
-    parser.add_argument('--data_dir', type=str, default="D:\\Data\\sketch_data") # expects directory 'training'
+    parser.add_argument('--dataset_multiplier', default=2, type=int, help="how many total images per original in the resulting dataset")
+    parser.add_argument('--data_dir', type=str, default="/data/data/sketch_data") # expects directory 'training'
     parser.add_argument('--label_dir', type=str, help="If the x and y pictures aren't aligned (attached), you need to supply the label_dir")
     parser.add_argument('--augmentation_threshold', type=float, default=0.5, help="randomly perform one of the augmentation procedures this % of the time")
     parser.add_argument('--image_type', type=str, default="rgb", help="rgb or grayscale")
@@ -88,7 +104,7 @@ def get_options():
     parser.add_argument('--tophat', type=str2bool, default=False)
     parser.add_argument('--noise', type=str2bool, default=True)
     # If you want to call this get_args() from a Jupyter Notebook, you need to uncomment -f line. Them's the rules.
-    parser.add_argument('-f', '--file', help='Path for input file.')
+    #parser.add_argument('-f', '--file', help='Path for input file.')
     return parser.parse_args()
     
 ############################################################################################
