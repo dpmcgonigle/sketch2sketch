@@ -140,9 +140,9 @@ class BaseOptions():
         #
         if not opt.dataroot:
             if os.name.lower() == "nt":
-                opt.dataroot = os.path.join("D:\\", "Data", "sketch_data", opt.dataset)
+                opt.dataroot = os.path.join("D:\\", "Data", "sketch_data")
             else:
-                opt.dataroot = os.path.join("mnt", "d", "Data", "sketch_data", opt.dataset)
+                opt.dataroot = os.path.join("/data", "data", "sketch_data")
 
         #
         #   McGonigle default output_dir
@@ -151,7 +151,7 @@ class BaseOptions():
             if os.name.lower() == "nt":
                 opt.checkpoints_dir = os.path.join("D:\\", "Data", "sketch_data", "checkpoints")
             else:
-                opt.checkpoints_dir = os.path.join("mnt", "d", "Data", "sketch_data", "checkpoints")
+                opt.checkpoints_dir = os.path.join("/data", "data", "sketch_data", "checkpoints")
         #
         #   McGonigle default output_dir
         #
