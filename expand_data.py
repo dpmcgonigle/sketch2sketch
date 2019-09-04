@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 """
 Testing out the format of datasets.
 run with -i option to keep interpreter open
