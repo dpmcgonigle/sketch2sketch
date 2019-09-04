@@ -109,6 +109,7 @@ Defaults:
             Implemented in: data/aligned_dataset.py
             
 6/17/2019 - STRIPPING ALL VISDOM OUT.  Converted visualizer:Visualizer to logger:Logger for logging.  Got rid of util/html.py.
+######################################################################################
 
 6/17/2019 - train_options.py: added save_sample_freq option
 		util/util.py: added save_sample() function; saves set of images at interval specified by args
@@ -129,4 +130,15 @@ Defaults:
             Ran CycleGAN with resnet_9blocks Generator and U-Net discriminator for 100 epochs (80 / 20-decay)
 
 
-
+######################################################################################
+    F   A   L   L           S   E   M   E   S   T   E   R           2   0   1   9
+######################################################################################
+9/3/2019 -  A few notes to start out, to get my thoughts in order:
+            -   In addition to the plan I submitted to Dr. Li, I generally want to be quicker to prototype code,
+                be more thorough with testing hyper-parameters, run multiple experiments on the same GPU, and
+                write more thorough, robust and documented code.
+            -   I had an idea since submitting the fall 2019 plan based on the data I collected from photo-sketching
+                inferring contours research.  Previously, I had combed through the 1,000 images and picked 1,000
+                targets from the set of 5,000 targets (5x per image).  I'm going to stitch together every picture
+                with every target to see if the model becomes more robust running this dataset.  After that, I think
+                I will expand the dataset by somewhere from 2x to 4x with augmented images, and see how that performs.
