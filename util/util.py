@@ -300,7 +300,7 @@ def plot_loss(opt, start=None, end=None):
                 x = [x * (epochs / arr.shape[0]) for x in range(arr.shape[0])]
                 plt.plot(x, arr, label="%s loss"%key)
             plt.legend(loc='upper left')
-            plt.savefig(os.path.join(opt.expr_dir, "epoch_%d-%d_losses.png"))
+            plt.savefig(os.path.join(opt.expr_dir, "epoch_%d-%d_losses.png" % (start,end)))
 
     except Exception as e:
         print("Couldn't plot graph from log file %s. ERROR: %s "%(log_file,str(e)))
