@@ -20,11 +20,11 @@ def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
 
-def make_dataset(dir, max_dataset_size=float("inf")):
+def make_dataset(datadir, max_dataset_size=float("inf")):
     images = []
-    assert os.path.isdir(dir), '%s is not a valid directory' % dir
+    assert os.path.isdir(datadir), '%s is not a valid directory' % datadir
 
-    for root, _, fnames in sorted(os.walk(dir)):
+    for root, _, fnames in sorted(os.walk(datadir)):
         for fname in fnames:
             if is_image_file(fname):
                 path = os.path.join(root, fname)

@@ -43,6 +43,7 @@ class BaseOptions():
         parser.add_argument('--checkpoints_dir', type=str, help='models are saved here')
         # model parameters
         parser.add_argument('--model', type=str, default='cycle_gan', help='chooses which model to use. [cycle_gan | pix2pix | test | colorization]')
+        parser.add_argument('--gan_mode', type=str, default='lsgan', help='the type of GAN objective. [vanilla| lsgan | wgangp]. vanilla GAN loss is the cross-entropy objective used in the original GAN paper.')
         parser.add_argument('--input_nc', type=int, default=3, help='# of input image channels: 3 for RGB and 1 for grayscale')
         parser.add_argument('--output_nc', type=int, default=3, help='# of output image channels: 3 for RGB and 1 for grayscale')
         parser.add_argument('--ngf', type=int, default=64, help='# of gen filters in the last conv layer')
@@ -57,6 +58,7 @@ class BaseOptions():
         # dataset parameters
         parser.add_argument('--dataset', default='sketchy_database', help='Name of the folder (should have subfolders train, val, test)')
         parser.add_argument('--dataset_mode', type=str, default='aligned', help='chooses how datasets are loaded. [unaligned | aligned | single | colorization]')
+        parser.add_argument('--lambda_gp', type=float, default=10.0, help='Gradient penalty hyper-parameter used with wgan-gp')
         parser.add_argument('--direction', type=str, default='BtoA', help='AtoB or BtoA')
         parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         parser.add_argument('--num_threads', default=4, type=int, help='# threads for loading data')
@@ -123,6 +125,7 @@ class BaseOptions():
 
         # save to the disk
         expr_dir = os.path.join(opt.checkpoints_dir, opt.name)
+        opt.expr_dir = expr_dir
         util.mkdirs(expr_dir)
         
         file_name = os.path.join(expr_dir, '{}_opt.txt'.format(opt.phase))

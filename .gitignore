@@ -7,6 +7,7 @@
 ########
 *.ipynb		# Jupyter Notebooks
 .ipynb*/*	# Jupyter Notebook cache
+misc/*      # Miscellaneous scripts and stuff
 __pycache__
 stitch.py   	# Used to fuse (real, edge, pred, target) validation images
 stitch_train.py # Used to fuse [realimg, real_A, fake_A, real_B, fake_B] images from training

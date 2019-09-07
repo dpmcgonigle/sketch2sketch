@@ -44,53 +44,67 @@ if __name__ == '__main__':
     
     total_iters = 0                # the total number of training iterations
 
-    for epoch in tqdm(range(opt.start_epoch, opt.niter + opt.niter_decay + 1)):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
-        epoch_start_time = time.time()  # timer for entire epoch
-        iter_data_time = time.time()    # timer for data loading per iteration
-        epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
+    #
+    #   This try is set up to catch KeyboardInterrupt in order to plot the losses if training is interrupted
+    #
+    try:
+        # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
+        for epoch in tqdm(range(opt.start_epoch, opt.niter + opt.niter_decay + 1)):
+            epoch_start_time = time.time()  # timer for entire epoch
+            iter_data_time = time.time()    # timer for data loading per iteration
+            epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
 
-        for i, data in tqdm(enumerate(dataset)):  # inner loop within one epoch
-            iter_start_time = time.time()  # timer for computation per iteration
-            if total_iters % opt.print_freq == 0:
-                t_data = iter_start_time - iter_data_time
+            for i, data in tqdm(enumerate(dataset)):  # inner loop within one epoch
+                iter_start_time = time.time()  # timer for computation per iteration
+                if total_iters % opt.print_freq == 0:
+                    t_data = iter_start_time - iter_data_time
+                    
+                total_iters += opt.batch_size
+                epoch_iter += opt.batch_size
+                model.set_input(data)         # unpack data from dataset and apply preprocessing
+                model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
+
+                #
+                #   print training losses and save logging information to the disk
+                #
+                if total_iters % opt.print_freq == 0: 
+                    losses = model.get_current_losses()
+                    t_comp = (time.time() - iter_start_time) / opt.batch_size
+                    logger.print_current_losses(epoch, epoch_iter, losses, t_comp, t_data)
+
+                #
+                #   Save entire model
+                #
+                if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
+                    print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
+                    save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
+                    model.save_networks(save_suffix)
+
+                #
+                #   Save sample
+                #
+                if total_iters % opt.save_sample_freq == 0:
+                    print('saving sample images at (epoch %d, total_iters %d)' % (epoch, total_iters))
+                    util.save_sample(model.get_current_visuals(), model.get_current_name(), img_dir, epoch, total_iters)
                 
-            total_iters += opt.batch_size
-            epoch_iter += opt.batch_size
-            model.set_input(data)         # unpack data from dataset and apply preprocessing
-            model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
+                iter_data_time = time.time()
+                
+            #
+            #   Save model at epoch frequency determined by command-line arguments
+            #  
+            if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
+                print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
+                model.save_networks('latest')
+                model.save_networks(epoch)
+    
+            print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+            model.update_learning_rate()                     # update learning rates at the end of every epoch.
 
-            #
-            #   print training losses and save logging information to the disk
-            #
-            if total_iters % opt.print_freq == 0: 
-                losses = model.get_current_losses()
-                t_comp = (time.time() - iter_start_time) / opt.batch_size
-                logger.print_current_losses(epoch, epoch_iter, losses, t_comp, t_data)
-
-            #
-            #   Save entire model
-            #
-            if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
-                print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
-                save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
-                model.save_networks(save_suffix)
-
-            #
-            #   Save sample
-            #
-            if total_iters % opt.save_sample_freq == 0:
-                print('saving sample images at (epoch %d, total_iters %d)' % (epoch, total_iters))
-                util.save_sample(model.get_current_visuals(), model.get_current_name(), img_dir, epoch, total_iters)
-            
-            iter_data_time = time.time()
-            
         #
-        #   Save model at epoch frequency determined by command-line arguments
+        #   Catch KeyboardInterrupt to plot losses
         #
-        if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
-            print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            model.save_networks('latest')
-            model.save_networks(epoch)
+    except KeyboardInterrupt:
+       util.plot_loss(opt, end=epoch)
 
-        print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
-        model.update_learning_rate()                     # update learning rates at the end of every epoch.
+    # If training doesn't get interrupted, plot losses!
+    util.plot_loss(opt) 

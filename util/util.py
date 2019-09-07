@@ -6,7 +6,26 @@ import numpy as np
 from PIL import Image
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
 
+############################################################################################
+#
+#   U   T   I   L   I   T   Y           F   U   N   C   T   I   O   N   S
+#   
+#   tensor2im                           converts a tensor array into numpy image array
+#   diagnose_networks                   Calculate and print the mean of average absolute(gradients)
+#   save_sample                         Save sample images from model at frequency with command-line args
+#   save_image                          Save a numpy image to the disk
+#   print_numpy                         Print the mean, min, max, median, std, and size of a numpy array
+#   makedirs                            create empty directories if they don't exist
+#   makedir                             create empty directory if it doesn't exist
+#   date_time_stamp                     returns datetime stamp in YYYYMMDD_HHMM format
+#   TorchCanny                          returns a torch tensor Canny edge detection
+#   DisplayTorchImg                     use plt.imshow to display a torch image
+#   get_img_dir                         returns image directory for a given experiment and phase
+#   plot_loss                           creates a matplotlib loss chart at the end of training
+#
+############################################################################################
 def tensor2im(input_image, imtype=np.uint8):
     """"Converts a Tensor array into a numpy image array.
 
@@ -27,6 +46,7 @@ def tensor2im(input_image, imtype=np.uint8):
         image_numpy = input_image
     return image_numpy.astype(imtype)
 
+############################################################################################
 
 def diagnose_network(net, name='network'):
     """Calculate and print the mean of average absolute(gradients)
@@ -46,13 +66,14 @@ def diagnose_network(net, name='network'):
     print(name)
     print(mean)
 
+############################################################################################
 
 def save_sample(visuals, basename, img_dir, epoch=None, total_iters=None):
     """Save sample images from model at frequency determined by command-line args
     
     Parameters:
         visuals (OrderedDict) - - dictionary of images to display or save
-        epoch (int) - - the current epoch
+        epoch (int) - - the current epochcreate empty directories if they don't exist
     """
     for label, image in visuals.items():
         image_numpy = tensor2im(image)
@@ -64,6 +85,7 @@ def save_sample(visuals, basename, img_dir, epoch=None, total_iters=None):
             img_path = os.path.join(img_dir, 'epoch_%.3d_iter_%.8d_%s_%s.png' % (epoch, total_iters, label, basename))
         save_image(image_numpy, img_path)
 
+############################################################################################
 def save_image(image_numpy, image_path):
     """Save a numpy image to the disk
 
@@ -74,6 +96,7 @@ def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)
     image_pil.save(image_path)
 
+############################################################################################
 
 def print_numpy(x, val=True, shp=False):
     """Print the mean, min, max, median, std, and size of a numpy array
@@ -90,6 +113,7 @@ def print_numpy(x, val=True, shp=False):
         print('mean = %3.3f, min = %3.3f, max = %3.3f, median = %3.3f, std=%3.3f' % (
             np.mean(x), np.min(x), np.max(x), np.median(x), np.std(x)))
 
+############################################################################################
 
 def mkdirs(paths):
     """create empty directories if they don't exist
@@ -103,6 +127,7 @@ def mkdirs(paths):
     else:
         mkdir(paths)
 
+############################################################################################
 
 def mkdir(path):
     """create a single empty directory if it didn't exist
@@ -113,6 +138,7 @@ def mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
+############################################################################################
 #
 #   McGonigle datetime stamp in YYYYMMDD_HHMM format
 #
@@ -121,6 +147,7 @@ def date_time_stamp():
     now = datetime.now() # current date and time
     return now.strftime("%Y%m%d_%H%M")
     
+############################################################################################
 #
 #   McGonigle created function to perform Canny edge detection on pytorch tensor
 #   6/29/2019 - Updated to handle single images and batches, RGB and grayscale
@@ -185,6 +212,7 @@ def TorchCanny(x):
     # Put it back into the Torch Tensor
     return torch.FloatTensor(arr)
     
+############################################################################################
 #
 #   McGonigle used the following function to test the output of the above TorchCanny function
 #
@@ -214,6 +242,68 @@ def DisplayTorchImg(x):
     # Display image
     plt.imshow(img)
     
+############################################################################################
     
 def get_img_dir(opt):
+    """ returns image directory based on checkpoints_dir, experiment name, and phase (train, val, test) """
     return os.path.join(opt.checkpoints_dir, opt.name, opt.phase)
+
+############################################################################################
+
+def plot_loss(opt, start=None, end=None):
+    """ plots loss_log.txt as a matplotlib graph at the end of training """
+
+    #
+    #   defaults for start and end based off command line options if not specified in function call
+    #
+    if not start:
+        start = opt.start_epoch
+    if not end:
+        end = (opt.niter + opt.niter_decay)
+
+    log_file = os.path.join(opt.expr_dir, "loss_log.txt")
+    lossdict = {}               #   store text losses for each model
+    epochs = end - start + 1    #   start is typically 1; so start 1, end 20 should yield 20 epochs
+
+    try:
+
+        #
+        #   Open the loss_log.txt file and gather all of the loss values into lossdict
+        #
+        with open (log_file, 'r') as log:
+            lines = log.readlines()
+            for line in lines[2:]:
+                line = line.split(')')[-1]
+                words = line.split()
+            
+                name = None
+                for index, word in enumerate(words):
+          
+                    if index % 2 == 0:
+                        name=word[:-1]
+                        if name not in lossdict.keys():
+                            lossdict[name] = []
+                    else:
+                        try:
+                            lossdict[name].append( float(word[:-1]) )
+                        except:
+                            pass
+
+            #
+            #   Plot a long horizontal graph
+            #
+            plt.figure(figsize=(24, 8))
+            plt.ylabel("Loss")
+            plt.xlabel("Epoch")
+            for key, value in lossdict.items():
+                arr = np.clip( np.array(value) , a_min=-10, a_max=10)
+                x = [x * (epochs / arr.shape[0]) for x in range(arr.shape[0])]
+                plt.plot(x, arr, label="%s loss"%key)
+            plt.legend(loc='upper left')
+            plt.savefig(os.path.join(opt.expr_dir, "epoch_%d-%d_losses.png"))
+
+    except Exception as e:
+        print("Couldn't plot graph from log file %s. ERROR: %s "%(log_file,str(e)))
+
+############################################################################################
+    
