@@ -19,6 +19,8 @@
         (expand a dataset by 2X, only on png images and only performing rotations at a rate of 100%
         ./expand_dataset.py --dataset <dataset> --augmentation_threshold 1.0 --ext png --translate false --tophat false --noise false --flip false
         ./expand_data.py --dataset photo_sketching_5k --augmentation_threshold 0.8 --dataset_multiplier 4
+        Zhou's account on Seahawks
+        python3 expand_data.py --dataset photo_sketching/photo_sketching_5k --augmentation_threshold 0.8 --dataset_multiplier 2 --debug all --data_dir /ihome/zhe/McGonigle/data/sketch_data
 
 """
 import argparse
