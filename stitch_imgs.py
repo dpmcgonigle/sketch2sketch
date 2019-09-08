@@ -11,6 +11,7 @@
     Examples:   (d) means already a default
         ./stitch_imgs.py --dataset photo_sketching_5k --name photosketch_5k1x --phase train --debug all
         ./stitch_imgs.py --dataset photo_sketching/photo_sketching_5k_8x --name photosketch_5k8x --phase train --debug all
+        ./stitch_imgs.py --dataset testdata/aligned_sketchy_sm --name photosketch_5k8x --phase val --debug all
 
 """
 import argparse
@@ -122,5 +123,4 @@ if __name__ == "__main__":
     #   Get command line options
     opt = get_options()
     
-    if opt.phase == "train":
-        util.stitch_training_imgs(opt)
+    util.stitch_imgs(opt)

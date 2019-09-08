@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import inspect
 from tqdm import tqdm
 from glob import glob
+import traceback
 
 ############################################################################################
 #
@@ -30,7 +31,7 @@ from glob import glob
 #   get_img_dir                         returns image directory for a given experiment and phase
 #   get_exp_dir                         returns directory for a given experiment
 #   plot_loss                           creates a matplotlib loss chart at the end of training
-#   stitch_training_imgs                Stitch the original, processed and generated images together
+#   stitch_imgs                         Stitch the original, processed and generated images together
 #
 ############################################################################################
 
@@ -362,7 +363,7 @@ def plot_loss(opt, start=None, end=None):
 
 ############################################################################################
     
-def stitch_training_imgs(opt, imgsize=256):
+def stitch_imgs(opt, imgsize=256):
     """
     Stitch the original, processed and generated images together.
     Image will be in a 3 row by 2 column grid, each picture 256 x 256:
@@ -371,7 +372,7 @@ def stitch_training_imgs(opt, imgsize=256):
         [   Generated A,    Generated B ]
     Note if --order is set to BtoA, Processed B and Generated B will be Orig A.
     """
-    stitch_dir = os.path.join(get_exp_dir(opt), "train_stitched")
+    stitch_dir = os.path.join(get_exp_dir(opt), "%s_stitched"%opt.phase)
     mkdir(stitch_dir)
 
     source_dir = os.path.join(opt.dataroot, opt.dataset, opt.phase)
@@ -381,34 +382,38 @@ def stitch_training_imgs(opt, imgsize=256):
     print_debug("Image directory for images: %s" % img_dir, opt)
     
     print(" ")
-    print("================ BEGINNING TRAINING DATASET STITCHING =================")
+    print("================ BEGINNING DATASET STITCHING =================")
     print(" ")
     
-    training_imgs = glob(os.path.join(img_dir, "*fake_A*"))
+    imgpaths = glob(os.path.join(img_dir, "*fake_A*"))
     
+    #   If we are in training, this variable captures metadata on image from split('_')
+    num_metatags = 4 if opt.phase == "train" else 0
+
     try:
     
-        for imgpath in tqdm(training_imgs):
+        for imgpath in tqdm(imgpaths):
             try:
                 #
                 #   Get filename data necessary to find 
                 #
-                # fake_A_path format: epoch_100_iter_01171000_fake_A_24-6.png
+                # training fake_A_path format: epoch_100_iter_01171000_fake_A_24-6.png
+                # testing fake_A_path format: fake_A_24-6.png
                 fake_A_path = os.path.basename(imgpath)
                 elems = fake_A_path.split('_')
                 # metadata: epoch_100_iter_01171000 (training metadata)
-                metadata = "_".join(elems[:4])
+                metadata = "_".join(elems[:num_metatags])
                 # imgname format: 24-6.png (original image name; "_".join used in case orig filename uses '_')
-                imgname = "_".join(elems[6:])
+                imgname = "_".join(elems[num_metatags+2:])
                 # imgbase format: 24-6 (need to strip extension to be able to handle other img types)
                 imgbase = imgname.split('.')[0]
                 print_debug("fake_A_path: %s" % fake_A_path, opt)  
                 print_debug("imgname: %s" % imgname, opt)  
                 
                 # Create paths for other images
-                real_A_path = "%s_real_A_%s" % (metadata,imgname)
-                real_B_path = "%s_real_B_%s" % (metadata,imgname)
-                fake_B_path = "%s_fake_B_%s" % (metadata,imgname)
+                real_A_path = "%s_real_A_%s" % (metadata,imgname) if metadata else "real_A_%s" % (imgname)
+                real_B_path = "%s_real_B_%s" % (metadata,imgname) if metadata else "real_B_%s" % (imgname)
+                fake_B_path = "%s_fake_B_%s" % (metadata,imgname) if metadata else "fake_B_%s" % (imgname)
 
                 #
                 #   TOP ROW OF IMAGES (ORIGINALS)
@@ -416,7 +421,7 @@ def stitch_training_imgs(opt, imgsize=256):
                 if opt.dataset_mode == "aligned":
                     real_path = glob(os.path.join(source_dir, "%s.*"%imgbase))
                     if len(real_path) > 1:
-                        print("util.stitch_training_imgs(): ERROR - more than 1 glob'd file from source %s and base %s" % (source_dir, imgbase))
+                        print("util.stitch_imgs(): ERROR - more than 1 glob'd file from source %s and base %s" % (source_dir, imgbase))
                     top_row = cv2.resize (
                         cv2.imread(real_path[0]), (imgsize*2,imgsize)
                     )
@@ -471,43 +476,10 @@ def stitch_training_imgs(opt, imgsize=256):
                 cv2.imwrite(os.path.join(stitch_dir,"%s_%s"%(metadata,imgname)), stitched_img)
                 
             except Exception as e:
-                print("util.stitch_training_imgs(): ERROR - %s" % str(e))
+                print("util.stitch_imgs(): ERROR - %s" % str(traceback.format_exc()))
                 
     except KeyboardInterrupt:        
         quit = input("SAVING STITCHED TRAINING IMAGES.  Are you sure you'd like to quit? (y/n) -> ")
         if quit in ['y', 'Y', 'yes', 'Yes', 'YES']:
             print("QUITTING PROGRAM AT USER's REQUEST.")
             exit(0)
-         
-    """
-    for i, data in tqdm(enumerate(dataset)):
-    
-        imageset = np.array(0, 512)
-        toprow = np.array(0, 512)   #initialize for scoping
-        
-        fullpath_A = data["A_paths"][0]
-        filename_A = os.path.basename(fullpath)
-        fullpath_B = data["B_paths"][0]
-        filename_B = os.path.basename(fullpath)
-        
-        #   Aligned dataset -- this is the only one programmed in as of 9/8/2019
-        if fullpath_A == fullpath_B:
-            #   First Row
-            #   Original A and Original B from input file
-            toprow = cv2.resize (
-                cv2.imread(fullpath_A), (512, 256)
-            )
-            
-        #   Second Row
-        #   Use the dataset passed to this function
-        real_A = cv2.resize(
-            data['A'], (256,256)
-        )
-        real_B = cv2.resize(
-            data['B'], (256,256)
-        )
-        midrow = np.hstack([real_A, real_B])
-        
-        #   Third Row
-        #   Get the images from the checkpoints_dir (as of 9/7/2019, these are all png images)
-    """    
