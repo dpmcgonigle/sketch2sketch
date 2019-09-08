@@ -37,7 +37,7 @@ if __name__ == '__main__':
     
     dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
     dataset_size = len(dataset)    # get the number of images in the dataset.
-    print('The number of training images = %d' % dataset_size)
+    util.print_debug('The number of training images = %d' % dataset_size, opt)
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
@@ -76,7 +76,7 @@ if __name__ == '__main__':
                 #   Save entire model
                 #
                 if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
-                    print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
+                    util.print_debug('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters), opt)
                     save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
                     model.save_networks(save_suffix)
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 #   Save sample
                 #
                 if total_iters % opt.save_sample_freq == 0:
-                    print('saving sample images at (epoch %d, total_iters %d)' % (epoch, total_iters))
+                    util.print_debug('saving sample images at (epoch %d, total_iters %d)' % (epoch, total_iters), opt)
                     util.save_sample(model.get_current_visuals(), model.get_current_name(), img_dir, epoch, total_iters)
                 
                 iter_data_time = time.time()
@@ -93,7 +93,7 @@ if __name__ == '__main__':
             #   Save model at epoch frequency determined by command-line arguments
             #  
             if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
-                print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
+                util.print_debug('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters), opt)
                 model.save_networks('latest')
                 model.save_networks(epoch)
     
@@ -105,6 +105,8 @@ if __name__ == '__main__':
         #
     except KeyboardInterrupt:
        util.plot_loss(opt, end=epoch)
+       util.stitch_training_imgs(opt, dataset)
 
     # If training doesn't get interrupted, plot losses!
     util.plot_loss(opt) 
+    util.stitch_training_imgs(opt, dataset)

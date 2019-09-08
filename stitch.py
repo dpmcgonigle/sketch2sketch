@@ -5,11 +5,11 @@ import numpy as np
 
 project = sys.argv[1]
 
-target = "D:\\Data\\sketch_data\\testing\\val_targets"
-real = "D:\\Data\\sketch_data\\testing\\val"
-val_A = "D:\\Data\\sketch_data\\checkpoints\\%s\\val_A" % project
-val_B = "D:\\Data\\sketch_data\\checkpoints\\%s\\val_B" % project
-stitch = "D:\\Data\\sketch_data\\checkpoints\\%s\\stitch" % project
+target = "D:\\data\\sketch_data\\testing\\val_targets"
+real = "D:\\data\\sketch_data\\testing\\val"
+val_A = "D:\\data\\sketch_data\\checkpoints\\%s\\val_A" % project
+val_B = "D:\\data\\sketch_data\\checkpoints\\%s\\val_B" % project
+stitch = "D:\\data\\sketch_data\\checkpoints\\%s\\stitch" % project
 
 if any ([not os.path.isdir(x) for x in [target, real, val_A, val_B]]):
     print("Not all paths worked.  Exiting")

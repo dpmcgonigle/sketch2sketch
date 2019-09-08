@@ -7,11 +7,16 @@ from PIL import Image
 import os
 from datetime import datetime
 import matplotlib.pyplot as plt
+import inspect
+from tqdm import tqdm
+from glob import glob
 
 ############################################################################################
 #
 #   U   T   I   L   I   T   Y           F   U   N   C   T   I   O   N   S
 #   
+#   debug_functions                     Parse  command-line args to get the list of functs to debug
+#   print_debug                         Simple debugging print statements for specified functions
 #   tensor2im                           converts a tensor array into numpy image array
 #   diagnose_networks                   Calculate and print the mean of average absolute(gradients)
 #   save_sample                         Save sample images from model at frequency with command-line args
@@ -23,9 +28,53 @@ import matplotlib.pyplot as plt
 #   TorchCanny                          returns a torch tensor Canny edge detection
 #   DisplayTorchImg                     use plt.imshow to display a torch image
 #   get_img_dir                         returns image directory for a given experiment and phase
+#   get_exp_dir                         returns directory for a given experiment
 #   plot_loss                           creates a matplotlib loss chart at the end of training
+#   stitch_training_imgs                Stitch the original, processed and generated images together
 #
 ############################################################################################
+
+def debug_functions(opt):
+    """
+    Parse the command-line arguments to get the list of functions to debug.
+    When running this script, pass in a comma-separated list (NO SPACES) of functions you'd like to debug.
+    Use "main" for main program body execution debugging.
+        ex: ./expand_data.py <some options> --debug load_images,augment_imageset,main
+    """
+    #   Get command line options
+    if opt.debug:
+        function_list = opt.debug.split(',')
+        return function_list
+    else:
+        return None
+
+############################################################################################
+
+def print_debug(input_str, opt, functions=None):
+    """ 
+    Simple debugging print statements that can be turned off or on with the debug variable. 
+    inputs: 
+        str, a string to output
+        functions, a list of string function names you want to debug (this program uses debug_functions to get these from cmd line)
+            ex: print_debug("Some output", functions=["get_source_dir","load_image"]), 
+            or: print_debug("Other output", functions=debug_functions())
+    """
+    #   if the --debug option isn't used, don't do anything!
+    if not opt.debug:
+        return
+        
+    if not functions:
+        functions = debug_functions(opt)
+
+    caller_function = inspect.stack()[1].function
+    if caller_function == "<module>":
+        caller_function = "main"
+    if "all" in functions or caller_function in functions: 
+        time_stamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+        print("%s %s(): %s" % (time_stamp, caller_function, input_str))
+# END print_debug
+############################################################################################
+
 def tensor2im(input_image, imtype=np.uint8):
     """"Converts a Tensor array into a numpy image array.
 
@@ -249,6 +298,12 @@ def get_img_dir(opt):
     return os.path.join(opt.checkpoints_dir, opt.name, opt.phase)
 
 ############################################################################################
+    
+def get_exp_dir(opt):
+    """ returns image directory based on checkpoints_dir, experiment name, and phase (train, val, test) """
+    return os.path.join(opt.checkpoints_dir, opt.name)
+
+############################################################################################
 
 def plot_loss(opt, start=None, end=None):
     """ plots loss_log.txt as a matplotlib graph at the end of training """
@@ -307,3 +362,149 @@ def plot_loss(opt, start=None, end=None):
 
 ############################################################################################
     
+def stitch_training_imgs(opt, dataset, imgsize=256):
+    """
+    Stitch the original, processed and generated images together.
+    Image will be in a 3 row by 2 column grid, each picture 256 x 256:
+        [   Orig A,         Orig B      ] 
+        [   Processed A,    Processed B ]
+        [   Generated A,    Generated B ]
+    Note if --order is set to BtoA, Processed B and Generated B will be Orig A.
+    """
+    stitch_dir = os.path.join(get_exp_dir(opt), "train_stitched")
+    mkdir(stitch_dir)
+    
+    img_dir = get_img_dir(opt)
+    
+    print(" ")
+    print("================ BEGINNING TRAINING DATASET STITCHING =================")
+    print(" ")
+    
+    training_imgs = glob(os.path.join(img_dir, "*fake_A*"))
+    
+    try:
+    
+        for imgpath in tqdm(training_imgs):
+            try:
+                #
+                #   Get filename data necessary to find 
+                #
+                # fake_A_path format: epoch_100_iter_01171000_fake_A_24-6.png
+                fake_A_path = os.path.basename(imgpath)
+                elems = fake_A_path.split('_')
+                # metadata: epoch_100_iter_01171000 (training metadata)
+                metadata = "_".join(elems[:4])
+                # imgname format: 24-6.png (original image name)
+                imgname = elems[-1]
+                # imgbase format: 24-6 (need to strip extension to be able to handle other img types)
+                imgbase = imgname.split('.')[0]
+                print_debug("fake_A_path: %s" % fake_A_path, opt)  
+                print_debug("imgname: %s" % imgname, opt)  
+                
+                # Create paths for other images
+                real_A_path = "%s_real_A_%s" % (metadata,imgname)
+                real_B_path = "%s_real_B_%s" % (metadata,imgname)
+                fake_B_path = "%s_fake_B_%s" % (metadata,imgname)
+
+                #
+                #   TOP ROW OF IMAGES (ORIGINALS)
+                #
+                source_dir = os.path.join(opt.dataroot, opt.dataset, opt.phase)
+                if opt.dataset_mode == "aligned":
+                    real_path = glob(os.path.join(source_dir, "%s.*"%imgbase))
+                    if len(real_path) > 1:
+                        print("util.stitch_training_imgs(): ERROR - more than 1 glob'd file from source %s and base %s" % (source_dir, imgbase))
+                    top_row = cv2.resize (
+                        cv2.imread(real_path[0]), (imgsize*2,imgsize)
+                    )
+                #
+                #   MIDDLE ROW OF IMAGES ("REAL")
+                #
+                # real_A
+                real_A = cv2.resize (
+                    cv2.imread(os.path.join(img_dir, real_A_path)), (imgsize,imgsize)
+                )
+                print_debug("real_A shape: %s" % str(real_A.shape), opt)
+                
+                # real_B
+                real_B = cv2.resize (
+                    cv2.imread(os.path.join(img_dir, real_B_path)), (imgsize,imgsize)
+                )
+                print_debug("real_B shape: %s" % str(real_B.shape), opt)
+
+                mid_row = np.hstack([real_A, real_B])
+                
+                #
+                #   BOTTOM ROW OF IMAGES (FAKE)
+                #
+                # fake_A
+                fake_A = cv2.resize (
+                    cv2.imread(os.path.join(img_dir, fake_A_path)), (imgsize,imgsize)
+                )
+                print_debug("fake_A shape: %s" % str(fake_A.shape), opt)
+                
+                # fake_B
+                fake_B = cv2.resize (
+                    cv2.imread(os.path.join(img_dir, fake_B_path)), (imgsize,imgsize)
+                )
+                print_debug("fake_B shape: %s" % str(fake_B.shape), opt)    
+
+                bot_row = np.hstack([fake_A, fake_B])      
+                
+                #
+                #   STITCH IMAGE TOGETHER
+                #
+                stitched_img = np.vstack([top_row, mid_row, bot_row])
+                print_debug("stitched_img shape: %s" % str(stitched_img.shape), opt)
+                
+                # Add text to stitched image (image, text, (x, y), font, color, style)
+                cv2.putText(stitched_img, "Orig A", ((imgsize*0)+10, (imgsize*1)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                cv2.putText(stitched_img, "Orig B", ((imgsize*1)+10, (imgsize*1)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                cv2.putText(stitched_img, "Real A", ((imgsize*0)+10, (imgsize*2)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                cv2.putText(stitched_img, "Real B", ((imgsize*1)+10, (imgsize*2)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                cv2.putText(stitched_img, "Fake A", ((imgsize*0)+10, (imgsize*3)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                cv2.putText(stitched_img, "Fake B", ((imgsize*1)+10, (imgsize*3)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
+                
+                cv2.imwrite(os.path.join(stitch_dir,"%s_%s"%(metadata,imgname)), stitched_img)
+                
+            except Exception as e:
+                print("util.stitch_training_imgs(): ERROR - %s" % str(e))
+                
+    except KeyboardInterrupt:        
+        quit = input("SAVING STITCHED TRAINING IMAGES.  Are you sure you'd like to quit? (y/n) -> ")
+        if quit in ['y', 'Y', 'yes', 'Yes', 'YES']:
+            print("QUITTING PROGRAM AT USER's REQUEST.")
+            exit(0)
+         
+    """
+    for i, data in tqdm(enumerate(dataset)):
+    
+        imageset = np.array(0, 512)
+        toprow = np.array(0, 512)   #initialize for scoping
+        
+        fullpath_A = data["A_paths"][0]
+        filename_A = os.path.basename(fullpath)
+        fullpath_B = data["B_paths"][0]
+        filename_B = os.path.basename(fullpath)
+        
+        #   Aligned dataset -- this is the only one programmed in as of 9/8/2019
+        if fullpath_A == fullpath_B:
+            #   First Row
+            #   Original A and Original B from input file
+            toprow = cv2.resize (
+                cv2.imread(fullpath_A), (512, 256)
+            )
+            
+        #   Second Row
+        #   Use the dataset passed to this function
+        real_A = cv2.resize(
+            data['A'], (256,256)
+        )
+        real_B = cv2.resize(
+            data['B'], (256,256)
+        )
+        midrow = np.hstack([real_A, real_B])
+        
+        #   Third Row
+        #   Get the images from the checkpoints_dir (as of 9/7/2019, these are all png images)
+    """    

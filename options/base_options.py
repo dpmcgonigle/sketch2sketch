@@ -37,6 +37,7 @@ class BaseOptions():
     def initialize(self, parser):
         """Define the common options that are used in both training and test."""
         # basic parameters
+        parser.add_argument('--debug', type=str, default=None, help="Comma-sep func list (no spaces); e.g. func1,func2; 'all' for all functions")
         parser.add_argument('--dataroot', help='path to image data root directory (should have subfolder(s) with name(s) of dataset(s))')
         parser.add_argument('--name', type=str, help='name of the experiment. It decides where to store samples and models')
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
@@ -143,7 +144,7 @@ class BaseOptions():
         #
         if not opt.dataroot:
             if os.name.lower() == "nt":
-                opt.dataroot = os.path.join("D:\\", "Data", "sketch_data")
+                opt.dataroot = os.path.join("D:\\", "data", "sketch_data")
             else:
                 opt.dataroot = os.path.join("/data", "data", "sketch_data")
 
@@ -152,7 +153,7 @@ class BaseOptions():
         #
         if not opt.checkpoints_dir:
             if os.name.lower() == "nt":
-                opt.checkpoints_dir = os.path.join("D:\\", "Data", "sketch_data", "checkpoints")
+                opt.checkpoints_dir = os.path.join("D:\\", "data", "sketch_data", "checkpoints")
             else:
                 opt.checkpoints_dir = os.path.join("/data", "data", "sketch_data", "checkpoints")
         #

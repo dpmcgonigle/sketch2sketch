@@ -123,7 +123,7 @@ def debug_functions():
 ############################################################################################
 def print_debug(input_str, functions=debug_functions()):
     """ 
-    Simple debugging print statements that can be turned off or on with the debug variable. 
+    Simple debugging print statements that can be turned off or on with specified functions. 
     inputs: 
         str, a string to output
         functions, a list of string function names you want to debug (this program uses debug_functions to get these from cmd line)
