@@ -105,8 +105,8 @@ if __name__ == '__main__':
         #
     except KeyboardInterrupt:
        util.plot_loss(opt, end=epoch)
-       util.stitch_training_imgs(opt, dataset)
+       util.stitch_training_imgs(opt)
 
     # If training doesn't get interrupted, plot losses!
     util.plot_loss(opt) 
-    util.stitch_training_imgs(opt, dataset)
+    util.stitch_training_imgs(opt)

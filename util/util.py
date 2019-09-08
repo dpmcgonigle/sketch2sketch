@@ -362,7 +362,7 @@ def plot_loss(opt, start=None, end=None):
 
 ############################################################################################
     
-def stitch_training_imgs(opt, dataset, imgsize=256):
+def stitch_training_imgs(opt, imgsize=256):
     """
     Stitch the original, processed and generated images together.
     Image will be in a 3 row by 2 column grid, each picture 256 x 256:
@@ -373,8 +373,12 @@ def stitch_training_imgs(opt, dataset, imgsize=256):
     """
     stitch_dir = os.path.join(get_exp_dir(opt), "train_stitched")
     mkdir(stitch_dir)
+
+    source_dir = os.path.join(opt.dataroot, opt.dataset, opt.phase)
+    print_debug("Source directory for images: %s" % source_dir, opt)
     
     img_dir = get_img_dir(opt)
+    print_debug("Image directory for images: %s" % img_dir, opt)
     
     print(" ")
     print("================ BEGINNING TRAINING DATASET STITCHING =================")
@@ -394,8 +398,8 @@ def stitch_training_imgs(opt, dataset, imgsize=256):
                 elems = fake_A_path.split('_')
                 # metadata: epoch_100_iter_01171000 (training metadata)
                 metadata = "_".join(elems[:4])
-                # imgname format: 24-6.png (original image name)
-                imgname = elems[-1]
+                # imgname format: 24-6.png (original image name; "_".join used in case orig filename uses '_')
+                imgname = "_".join(elems[6:])
                 # imgbase format: 24-6 (need to strip extension to be able to handle other img types)
                 imgbase = imgname.split('.')[0]
                 print_debug("fake_A_path: %s" % fake_A_path, opt)  
@@ -409,7 +413,6 @@ def stitch_training_imgs(opt, dataset, imgsize=256):
                 #
                 #   TOP ROW OF IMAGES (ORIGINALS)
                 #
-                source_dir = os.path.join(opt.dataroot, opt.dataset, opt.phase)
                 if opt.dataset_mode == "aligned":
                     real_path = glob(os.path.join(source_dir, "%s.*"%imgbase))
                     if len(real_path) > 1:
