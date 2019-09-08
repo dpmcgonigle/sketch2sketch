@@ -54,14 +54,27 @@ if __name__ == '__main__':
     # For [CycleGAN]: It should not affect CycleGAN as CycleGAN uses instancenorm without dropout.
     if opt.eval:
         model.eval()
-    for i, data in enumerate(dataset):
+
+    #
+    #   This try is set up to catch KeyboardInterrupt in order to plot the losses if training is interrupted
+    #
+    try:  
+        for i, data in enumerate(dataset):
     
-        # Verify data 
-        # print("Image %d shape: %s; max: %.02f; min: %.02f" % (i, str(data.shape), torch.max(data), torch.min(data)))
+            # Verify data 
+            # print("Image %d shape: %s; max: %.02f; min: %.02f" % (i, str(data.shape), torch.max(data), torch.min(data)))
     
-        if i >= opt.num_test:  # only apply our model to opt.num_test images.
-            break
-        model.set_input(data)  # unpack data from data loader
-        model.test()           # run inference
-        
-        util.save_sample(model.get_current_visuals(), model.get_current_name(), img_dir)
+            if i >= opt.num_test:  # only apply our model to opt.num_test images.
+                break
+            model.set_input(data)  # unpack data from data loader
+            model.test()           # run inference
+    
+            util.save_sample(model.get_current_visuals(), model.get_current_name(), img_dir)
+
+    except KeyboardInterrupt:
+       util.stitch_imgs(opt)
+
+    # If training doesn't get interrupted, plot losses!
+    util.stitch_imgs(opt)
+
+
