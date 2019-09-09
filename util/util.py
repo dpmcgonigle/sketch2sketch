@@ -473,7 +473,8 @@ def stitch_imgs(opt, imgsize=256):
                 cv2.putText(stitched_img, "Fake A", ((imgsize*0)+10, (imgsize*3)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
                 cv2.putText(stitched_img, "Fake B", ((imgsize*1)+10, (imgsize*3)-10), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), lineType=cv2.LINE_AA) 
                 
-                cv2.imwrite(os.path.join(stitch_dir,"%s_%s"%(metadata,imgname)), stitched_img)
+                stitched_name = "%s_%s"%(metadata,imgname) if metadata else imgname
+                cv2.imwrite(os.path.join(stitch_dir,stitched_name), stitched_img)
                 
             except Exception as e:
                 print("util.stitch_imgs(): ERROR - %s" % str(traceback.format_exc()))
