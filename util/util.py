@@ -401,14 +401,14 @@ def stitch_imgs(opt, imgsize=256):
                 # testing fake_B_path format: fake_A_24-6.png
                 #   NOTE that _A_ in image path refers to generator A, not image domain A (it produces image in domain B)
                 fake_B_path = os.path.basename(imgpath)
-                elems = fake_A_path.split('_')
+                elems = fake_B_path.split('_')
                 # metadata: epoch_100_iter_01171000 (training metadata)
                 metadata = "_".join(elems[:num_metatags])
                 # imgname format: 24-6.png (original image name; "_".join used in case orig filename uses '_')
                 imgname = "_".join(elems[num_metatags+2:])
                 # imgbase format: 24-6 (need to strip extension to be able to handle other img types)
                 imgbase = imgname.split('.')[0]
-                print_debug("fake_A_path: %s" % fake_A_path, opt)  
+                print_debug("fake_B_path: %s" % fake_B_path, opt)  
                 print_debug("imgname: %s" % imgname, opt)  
                 
                 # Create paths for other images (fake_A*.png will be domain B, as the A refers to the generator)
