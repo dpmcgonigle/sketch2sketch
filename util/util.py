@@ -399,7 +399,7 @@ def stitch_imgs(opt, imgsize=256):
                 #
                 # training fake_A_path format: epoch_100_iter_01171000_fake_A_24-6.png
                 # testing fake_A_path format: fake_A_24-6.png
-                fake_A_path = os.path.basename(imgpath)
+                fake_B_path = os.path.basename(imgpath)
                 elems = fake_A_path.split('_')
                 # metadata: epoch_100_iter_01171000 (training metadata)
                 metadata = "_".join(elems[:num_metatags])
@@ -410,10 +410,10 @@ def stitch_imgs(opt, imgsize=256):
                 print_debug("fake_A_path: %s" % fake_A_path, opt)  
                 print_debug("imgname: %s" % imgname, opt)  
                 
-                # Create paths for other images
+                # Create paths for other images (fake_A*.png will be domain B, as the A refers to the generator)
                 real_A_path = "%s_real_A_%s" % (metadata,imgname) if metadata else "real_A_%s" % (imgname)
                 real_B_path = "%s_real_B_%s" % (metadata,imgname) if metadata else "real_B_%s" % (imgname)
-                fake_B_path = "%s_fake_B_%s" % (metadata,imgname) if metadata else "fake_B_%s" % (imgname)
+                fake_B_path = "%s_fake_A_%s" % (metadata,imgname) if metadata else "fake_B_%s" % (imgname)
 
                 #
                 #   TOP ROW OF IMAGES (ORIGINALS)
