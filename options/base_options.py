@@ -57,7 +57,7 @@ class BaseOptions():
         parser.add_argument('--init_gain', type=float, default=0.02, help='scaling factor for normal, xavier and orthogonal.')
         parser.add_argument('--no_dropout', action='store_true', help='no dropout for the generator')
         # dataset parameters
-        parser.add_argument('--dataset', default='sketchy_database', help='Name of the folder (should have subfolders train, val, test)')
+        parser.add_argument('--dataset', default='sketchydb/sketchydb', help='Name of the folder (should have subfolders train, val, test)')
         parser.add_argument('--dataset_mode', type=str, default='aligned', help='chooses how datasets are loaded. [unaligned | aligned | single | colorization]')
         parser.add_argument('--lambda_gp', type=float, default=10.0, help='Gradient penalty hyper-parameter used with wgan-gp')
         parser.add_argument('--direction', type=str, default='BtoA', help='AtoB or BtoA')
