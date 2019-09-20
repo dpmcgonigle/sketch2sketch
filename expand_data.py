@@ -19,6 +19,7 @@
         (expand a dataset by 2X, only on png images and only performing rotations at a rate of 100%
         ./expand_dataset.py --dataset <dataset> --augmentation_threshold 1.0 --ext png --translate false --tophat false --noise false --flip false
         ./expand_data.py --dataset photo_sketching_5k --augmentation_threshold 0.8 --dataset_multiplier 4
+        ./expand_data.py --dataset sketchydb/sketchydb --augmentation_threshold 0.8 --dataset_multiplier 4 --input_side B --phase train
         Zhou's account on Seahawks
         python3 expand_data.py --dataset photo_sketching/photo_sketching_5k --augmentation_threshold 0.8 --dataset_multiplier 2 --debug all --data_dir /ihome/zhe/McGonigle/data/sketch_data
 
@@ -38,7 +39,7 @@ import inspect
 #   '--dataset_multiplier'              '--data_dir'    '--label_dir'
 #   '--augmentation_threshold'          '--image_type'  '--flip'
 #   '--rotate'         '--translate'    '--tophat'      '--noise'
-#   '--debug'
+#   '--debug'          '--input_side'
 #       
 ############################################################################################
 
@@ -84,6 +85,7 @@ def get_options():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', type=str, default=None, help="Comma-sep func list (no spaces); e.g. func1,func2; 'all' for all functions")
     parser.add_argument('--aligned', type=str2bool, default=True, help="If pictures are attached, select this option")
+    parser.add_argument('--input_side', type=str, default="A", help="If images are aligned, specify the side that should be treated as input")
     parser.add_argument('--dataset', type=str, default="photo_sketching", help="Dataset - should have a <opt.phase> directory in it")
     parser.add_argument('--phase', type=str, default="train", help="train, test, val, etc - should be a directory in data_dir")
     parser.add_argument('--ext', type=str, help="extension (jpg, png, gif, etc -- optional)")
@@ -300,8 +302,15 @@ def load_image_batch(opt, x_data_paths, y_data_paths):
     if opt.aligned:
         for path in x_data_paths:
             img_set = load_image(image_path=path, image_type=opt.image_type)
-            x_images.append(img_set[:, :opt.img_width])
-            y_images.append(img_set[:, -opt.img_width:])
+            if opt.input_side in ["A","a","1"]:
+                x_images.append(img_set[:, :opt.img_width])
+                y_images.append(img_set[:, -opt.img_width:])
+            elif opt.input_side in ["B","b","2"]:
+                x_images.append(img_set[:, -opt.img_width:])
+                y_images.append(img_set[:, :opt.img_width])
+            else:
+                print("ERROR: %s is not a valid input_side option. Exiting with code 1." % opt.input_side)
+                exit(1)
     
     # Not aligned
     else:     
@@ -451,8 +460,13 @@ def save_expanded_set(opt, new_x_images, new_y_images, x_data_paths, y_data_path
                 index = (i * opt.dataset_multiplier) + j
                 
                 #   stitch images together
-                stitched_img = np.hstack([new_x_images[index], new_y_images[index]])
-                
+                if opt.input_side in ["A","a","1"]:
+                    stitched_img = np.hstack([new_x_images[index], new_y_images[index]])
+                elif opt.input_side in ["B","b","2"]:
+                    stitched_img = np.hstack([new_y_images[index], new_x_images[index]])
+                else:
+                    print("ERROR: %s not a valid option for opt.input_side.  Exiting with code 1." % opt.input_side)
+
                 #   save images
                 cv2.imwrite(os.path.join(destdir, fname + "-%d%s" % (j,ext)), stitched_img)
                 
