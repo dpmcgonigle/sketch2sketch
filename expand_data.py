@@ -324,7 +324,7 @@ def load_image_batch(opt, x_data_paths, y_data_paths):
 ############################################################################################
 
 ############################################################################################
-def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True, rotate=True, translate=True, tophat=True, noise=True):
+def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True, rotate=True, translate=True, tophat=True, noise=True, image_type="rgb"):
     """
     Perform morphological transformations and other data augmentation methods on an input image and label image.
     Decide whether to perform each operation randomly based on the probability_threshold
@@ -346,16 +346,20 @@ def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True,
     x_img = input_img.copy()
     y_img = label_img.copy()
     rows,cols = x_img.shape[0] , x_img.shape[1] 
-    channels = x_img.shape[-1]
+    channels = x_img.shape[-1] if opt.image_type=="rgb" else 1
     
     # Flips
     if flip and np.random.rand() <= probability_threshold:
         # Vertical flip is axis 0, Horizontal flip is axis 1
         flip_axis = 0 if np.random.rand() <= 0.5 else 1
         print_debug("flip axis %d"%flip_axis)
-        for i in range(channels):
-            x_img[:,:,i] = cv2.flip(x_img[:,:,i], flip_axis)
-            y_img[:,:,i] = cv2.flip(y_img[:,:,i], flip_axis)
+        if channels > 1:
+            for i in range(channels):
+                x_img[:,:,i] = cv2.flip(x_img[:,:,i], flip_axis)
+                y_img[:,:,i] = cv2.flip(y_img[:,:,i], flip_axis)
+        else:
+            x_img[:,:] = cv2.flip(x_img[:,:], flip_axis)
+            y_img[:,:] = cv2.flip(y_img[:,:], flip_axis)
     
     # Rotations - important to put this before translate
     if rotate and np.random.rand() <= probability_threshold:
@@ -363,12 +367,16 @@ def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True,
         rotation = np.random.randint(-360,360)
         print_debug("rotate %d degrees" % rotation)
 
-        for i in range(channels):
-            #(col/2,rows/2) is the center of rotation for the image 
-            # M is transformation matrix (computer graphics concept)
-            M = cv2.getRotationMatrix2D((cols/2,rows/2),rotation,1) 
-            x_img[:,:,i] = cv2.warpAffine(x_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))   
-            y_img[:,:,i] = cv2.warpAffine(y_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))  
+        M = cv2.getRotationMatrix2D((cols/2,rows/2),rotation,1) 
+        if channels > 1:
+            for i in range(channels):
+                #(col/2,rows/2) is the center of rotation for the image 
+                # M is transformation matrix (computer graphics concept)
+                x_img[:,:,i] = cv2.warpAffine(x_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))   
+                y_img[:,:,i] = cv2.warpAffine(y_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))  
+        else:
+            x_img[:,:] = cv2.warpAffine(x_img[:,:],M,(cols,rows), borderValue=(255))   
+            y_img[:,:] = cv2.warpAffine(y_img[:,:],M,(cols,rows), borderValue=(255))  
         
     # Translations
     if translate and np.random.rand() <= probability_threshold:
@@ -377,12 +385,16 @@ def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True,
         translation_y = np.random.randint(int(- x_img.shape[0] / 4), int(x_img.shape[0] / 4))
         print_debug("translate [%d, %d] pixels" % (translation_x, translation_y))
         
-        for i in range(channels):
-            # M is transformation matrix (computer graphics concept)
-            M = np.float32([[1,0,translation_x],[0,1,translation_y]]) 
-            x_img[:,:,i] = cv2.warpAffine(x_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))         
-            y_img[:,:,i] = cv2.warpAffine(y_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))  
-        
+        M = np.float32([[1,0,translation_x],[0,1,translation_y]]) 
+        if channels > 1:
+            for i in range(channels):
+                # M is transformation matrix (computer graphics concept)
+                x_img[:,:,i] = cv2.warpAffine(x_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))         
+                y_img[:,:,i] = cv2.warpAffine(y_img[:,:,i],M,(cols,rows), borderValue=(255,255,255))  
+        else:
+            x_img[:,:] = cv2.warpAffine(x_img[:,:],M,(cols,rows), borderValue=(255))         
+            y_img[:,:] = cv2.warpAffine(y_img[:,:],M,(cols,rows), borderValue=(255))  
+
     # Tophat transforms
     if tophat and np.random.rand() <= probability_threshold:
         # tophat (image opening) is black_tophat; bottomhat (image closing) is white_tophat
@@ -390,8 +402,11 @@ def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True,
         # Size 25 square for structuring element visually looks like a good choice for this type of data
         xform = morphology.black_tophat if np.random.rand() <= 0.5 else morphology.white_tophat
         print_debug("Tophat transform: %s" % str(xform))
-        for i in range(channels):
-            x_img[:,:,i] = xform(x_img[:,:,i], selem=morphology.square(25))
+        if channels > 1:
+            for i in range(channels):
+                x_img[:,:,i] = xform(x_img[:,:,i], selem=morphology.square(25))
+        else:
+            x_img[:,:] = xform(x_img[:,:], selem=morphology.square(25))
 
     # Make some noise
     if noise and np.random.rand() <= probability_threshold:
@@ -405,12 +420,20 @@ def augment_imageset(input_img, label_img, probability_threshold=0.2, flip=True,
         print_debug("Adding %.02f %s noise" % (noise_amount, mode))
         
         noise_img = None
-        for i in range(channels):
+
+        if channels > 1:
+            for i in range(channels):
+                if mode == "gaussian":
+                    noise_img = random_noise(x_img[:,:,i], mode=mode, var=noise_amount**2)  
+                elif mode == "s&p":
+                    noise_img = random_noise(x_img[:,:,i], mode=mode, amount=noise_amount)
+                x_img[:,:,i] = (255*noise_img).astype(np.uint8)
+        else:
             if mode == "gaussian":
-                noise_img = random_noise(x_img[:,:,i], mode=mode, var=noise_amount**2)  
+                noise_img = random_noise(x_img[:,:], mode=mode, var=noise_amount**2)  
             elif mode == "s&p":
-                noise_img = random_noise(x_img[:,:,i], mode=mode, amount=noise_amount)
-            x_img[:,:,i] = (255*noise_img).astype(np.uint8)
+                noise_img = random_noise(x_img[:,:], mode=mode, amount=noise_amount)
+            x_img[:,:] = (255*noise_img).astype(np.uint8)
         
     return x_img, y_img
 # END augment_imageset
@@ -429,7 +452,7 @@ def expand_dataset(opt, x_images, y_images):
     for i in range(len(x_images)):
         for j in range(opt.dataset_multiplier):
             x_img, y_img = augment_imageset(x_images[i], y_images[i], probability_threshold=opt.augmentation_threshold, 
-                flip=opt.flip, rotate=opt.rotate, translate=opt.translate, tophat=opt.tophat, noise=opt.noise)
+                flip=opt.flip, rotate=opt.rotate, translate=opt.translate, tophat=opt.tophat, noise=opt.noise, image_type=opt.image_type)
                 
             new_x_set.append(x_img)
             new_y_set.append(y_img)
