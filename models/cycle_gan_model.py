@@ -38,9 +38,10 @@ class CycleGANModel(BaseModel):
         """
         parser.set_defaults(no_dropout=True)  # default CycleGAN did not use dropout
         if is_train:
-            parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A)')
-            parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B)')
+            parser.add_argument('--lambda_A', type=float, default=10.0, help='weight for cycle loss (A -> B -> A); 0.0 to 100.0')
+            parser.add_argument('--lambda_B', type=float, default=10.0, help='weight for cycle loss (B -> A -> B); 0.0 to 100.0')
             parser.add_argument('--lambda_identity', type=float, default=0.5, help='use identity mapping. Setting lambda_identity other than 0 has an effect of scaling the weight of the identity mapping loss. For example, if the weight of the identity loss should be 10 times smaller than the weight of the reconstruction loss, please set lambda_identity = 0.1')
+            parser.add_argument('--better_cycles', type=store_true, help='add the discriminator loss to the cycle loss based on the better cycles paper')
 
         return parser
 
@@ -55,6 +56,7 @@ class CycleGANModel(BaseModel):
         # McGonigle building in WGAN-GP mode for CycleGAN 7/2/2019
         self.gan_mode = opt.gan_mode
         self.lambda_gp = opt.lambda_gp
+        self.better_cycles = opt.better_cycles
         
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
         self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
@@ -220,9 +222,17 @@ class CycleGANModel(BaseModel):
         # GAN loss D_B(G_B(B))
         self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
         # Forward cycle loss || G_B(G_A(A)) - A||
-        self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
+        if self.better_cycles:
+            disc_loss_A = self.criterionCycle(self.netD_A(self.rec_A), self.netD_A(self.real_A)) * (100.0 - lambda_A)
+            self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A + disc_loss_A
+        else:
+            self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
         # Backward cycle loss || G_A(G_B(B)) - B||
-        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
+        if self.better_cycles:
+            disc_loss_B = self.criterionCycle(self.netD_B(self.rec_B), self.netD_B(self.real_B)) * (100.0 - lambda_B)
+            self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B + disc_loss_B
+        else:
+            self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
         # combined loss and calculate gradients
         self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
         self.loss_G.backward()
