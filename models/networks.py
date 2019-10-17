@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import init
 import functools
 from torch.optim import lr_scheduler
+from torch.nn import functional as F
 
 
 ###############################################################################
@@ -232,7 +233,9 @@ class GANLoss(nn.Module):
             self.loss = nn.MSELoss()
         elif gan_mode == 'vanilla':
             self.loss = nn.BCEWithLogitsLoss()
-        elif gan_mode in ['wgangp']:
+        elif gan_mode == 'lsganp':
+            self.loss = MSELoss_P()
+        elif gan_mode == ['wgangp']:
             self.loss = None
         else:
             raise NotImplementedError('gan mode %s not implemented' % gan_mode)
@@ -264,7 +267,7 @@ class GANLoss(nn.Module):
         Returns:
             the calculated loss.
         """
-        if self.gan_mode in ['lsgan', 'vanilla']:
+        if self.gan_mode in ['lsgan', 'vanilla', 'style']:
             target_tensor = self.get_target_tensor(prediction, target_is_real)
             loss = self.loss(prediction, target_tensor)
         elif self.gan_mode == 'wgangp':
@@ -613,3 +616,18 @@ class PixelDiscriminator(nn.Module):
     def forward(self, input):
         """Standard forward."""
         return self.net(input)
+
+#   MSELoss with penalty
+##################################################################################
+
+class MSELoss_P(nn.Module):
+    """Defines a loss function based on MSELoss that adds a penalty if generated image uses more ink than the target."""
+
+    def __init__(self):
+        """Constructor."""
+        super(MSELoss_P, self).__init__()
+
+    def forward(self, input, target):
+        """Adds penalty parameter for percentage increase in ink from target to input."""
+        penalty = torch.max(torch.sum(input) / torch.sum(target) - 1, torch.zeros(1).double())
+        return F.mse_loss(input, target)
