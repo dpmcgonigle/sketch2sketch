@@ -629,5 +629,6 @@ class MSELoss_P(nn.Module):
 
     def forward(self, input, target):
         """Adds penalty parameter for percentage increase in ink from target to input."""
-        penalty = torch.max(torch.sum(input) / torch.sum(target) - 1, torch.zeros(1).double())
+        device = target.device
+        penalty = torch.max(torch.sum(input) / torch.sum(target) - 1, torch.zeros(1).double().to(device))
         return F.mse_loss(input, target)
