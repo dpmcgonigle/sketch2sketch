@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 from torch.nn import init
+from torch.nn import functional as F
+import numpy as np
 import functools
 from torch.optim import lr_scheduler
-from torch.nn import functional as F
 
 
 ###############################################################################
@@ -630,5 +631,10 @@ class MSELoss_P(nn.Module):
     def forward(self, input, target):
         """Adds penalty parameter for percentage increase in ink from target to input."""
         device = target.device
-        penalty = torch.max((torch.sum(input) / torch.sum(target) - 1).float().to(device), torch.zeros(1).float().to(device))
-        return F.mse_loss(input, target) + penalty
+        inputink = (np.prod(input.shape) - torch.sum(input))
+        targetink = (np.prod(target.shape) - torch.sum(target))
+        print('inputink %s, targetink %s' % (str(inputink), str(targetink)))
+        penalty = torch.max((inputink / targetink - 1).float().to(device), torch.zeros(1).float().to(device))
+        loss = F.mse_loss(input, target) + penalty
+        print('loss %s' % str(loss))
+        return loss
