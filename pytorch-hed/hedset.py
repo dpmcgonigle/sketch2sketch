@@ -6,8 +6,8 @@
 #   9/13/2019
 #
 #   EXAMPLE
-#   ./hedset.py /data/data/sketch_data/sketchydb/sketchydb_2x train B
-#   ./hedset.py /data/data/sketch_data/photo_sketching/photo_sketching_5k train A
+#   ./hedset.py --datadir /data/data/sketch_data/sketchydb/sketchydb_2x --mode train --side B --procs 5
+#   ./hedset.py --datadir /data/data/sketch_data/photo_sketching/photo_sketching_5k --mode train --side A --procs 2
 ###################################################################################
 
 import os, sys
@@ -15,6 +15,7 @@ from subprocess import Popen, PIPE
 from glob import glob
 import multiprocessing as mp
 from run import edge
+import argparse
 
 ###################################################################################
 #
@@ -45,19 +46,19 @@ def process_image(source, dest, side):
 #
 ###################################################################################
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--datadir', type=str, required=True, default=None, help='Image dir (reqd)')
+    parser.add_argument('--mode', type=str, default='train', help='[train|val|test]')
+    parser.add_argument('--side', type=str, default='A', help='[A|B]')
+    parser.add_argument('--procs', type=int, default=2, help='Number of processes (should be limited by amount of RAM on GPU; ~2GB per image I think.')
+    args = parser.parse_args()
 
-    #   Get CPUs
+    #   Get CPUs - can't use cpu_count since I will run out of memory 
     #processes = mp.cpu_count() - 1 or 1
-    processes = 5
-
-    #   Get Args
-    try:    
-        dirname = sys.argv[1]
-        mode = sys.argv[2]
-        side = sys.argv[3]
-    except Exception as e:
-        print("ERROR taking in dataset dir (arg 1), mode (arg 2; train, val, test) and side (arg 3; A or B): %s.  Exiting with code 1." % str(e))
-        exit(1)
+    processes = args.procs
+    mode = args.mode
+    side = args.side
+    dirname = args.datadir
 
     #   Check Args
     assert os.path.exists(dirname), "Directory %s doesn't exist" % dirname
@@ -69,7 +70,7 @@ if __name__ == "__main__":
     images = glob(os.path.join(oldpath, "*"))
 
     #   Create destination directory
-    newpath = os.path.join("%s_hed" % (dirname, mode))
+    newpath = os.path.join("%s_hed" % dirname, mode)
     print("Creating directory %s" % (newpath))
     try:
         os.makedirs(newpath)
