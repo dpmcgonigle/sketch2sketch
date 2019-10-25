@@ -69,7 +69,7 @@ if __name__ == "__main__":
     images = glob(os.path.join(oldpath, "*"))
 
     #   Create destination directory
-    newpath = os.path.join("%s_hed" % dirname, mode)
+    newpath = os.path.join("%s_hed" % (dirname, mode))
     print("Creating directory %s" % (newpath))
     try:
         os.makedirs(newpath)
