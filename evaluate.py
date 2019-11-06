@@ -25,6 +25,9 @@ import inspect
 #   --sketch_ext        png, jpg or gif
 #   --target_dir        ex: /mnt/d/data/sketch_data/testing/unaligned_sket
 #   --target_ext        png, jpg or gif
+#   --method            dice, sensitivity, specificity, f1_score
+#   --height            image height to resize to
+#   --width             image width to resize to
 ############################################################################################
 
 ############################################################################################
@@ -34,10 +37,17 @@ import inspect
 #       get_options
 #       debug_functions
 #       debug
-#       num_images
-#       load_images
 #       get_filenames
+#       load_filename_sets
+#       load_images
 #       load_image
+#       sensitivity
+#       specificity
+#       precision
+#       f1_score
+#       accuracy
+#       dice
+#       evaluate
 #       
 ############################################################################################
 
@@ -68,6 +78,8 @@ def get_options():
     parser.add_argument('--sketch_dir', type=str, required=True, help="Required; generated image directory")
     parser.add_argument('--target_dir', type=str, required=True, help="Required; target image directory")
     parser.add_argument('--method', type=str, default='dice', help="Method of evaluation (dice, l1, l2)")
+    parser.add_argument('--height', type=int, default=256, help="Image height")
+    parser.add_argument('--width', type=int, default=256, help="Image width")
     # If you want to call this get_args() from a Jupyter Notebook, you need to uncomment -f line. Them's the rules.
     #parser.add_argument('-f', '--file', help='Path for input file.')
     return parser.parse_args()
@@ -111,66 +123,6 @@ def debug(input_str, functions=debug_functions()):
         time_stamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
         print("%s %s(): %s" % (time_stamp, caller_function, input_str))
 # END debug
-############################################################################################
-
-############################################################################################
-def load_images(filepaths, opt):
-    """
-    returns list of numpy arrays representing the images stored at each path in filepaths.
-    
-    Params:
-        filepaths(list of strings)      list of filepaths containing images to be returned
-    """
-    imgs = []
-    for path in filepaths:
-        assert os.path.exists(path), 'ERROR load_images(): filepath %s doesnt exist' % path
-
-        binary = True if opt.method.lower() in ['dice'] else False
-        imgs.append(load_image(path, binary=binary))
-
-    return imgs
-# END load_images
-############################################################################################
-
-############################################################################################
-def dice(im1, im2, empty_score=1.0):
-    """
-    Computes the Dice coefficient, a measure of set similarity.
-    Borrowed from https://gist.github.com/brunodoamaral/e130b4e97aa4ebc468225b7ce39b3137
-    Parameters
-    ----------
-    im1 : array-like, bool
-        Any array of arbitrary size. If not boolean, will be converted.
-    im2 : array-like, bool
-        Any other array of identical size. If not boolean, will be converted.
-    Returns
-    -------
-    dice : float
-        Dice coefficient as a float on range [0,1].
-        Maximum similarity = 1
-        No similarity = 0
-        Both are empty (sum eq to zero) = empty_score
-        
-    Notes
-    -----
-    The order of inputs for `dice` is irrelevant. The result will be
-    identical if `im1` and `im2` are switched.
-    """
-    im1 = np.asarray(im1).astype(np.bool)
-    im2 = np.asarray(im2).astype(np.bool)
-
-    if im1.shape != im2.shape:
-        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
-
-    im_sum = im1.sum() + im2.sum()
-    if im_sum == 0:
-        return empty_score
-
-    # Compute Dice coefficient
-    intersection = np.logical_and(im1, im2)
-
-    return (2. * intersection.sum() / im_sum)
-# END dice
 ############################################################################################
 
 ############################################################################################
@@ -219,18 +171,42 @@ def load_filename_sets(opt):
 ############################################################################################
 
 ############################################################################################
-def load_image(image_path, binary=True):
+def load_images(filepaths, opt):
+    """
+    returns list of numpy arrays representing the images stored at each path in filepaths.
+    
+    Params:
+        filepaths(list of strings)      list of filepaths containing images to be returned
+    """
+    imgs = []
+    for path in filepaths:
+        assert os.path.exists(path), 'ERROR load_images(): filepath %s doesnt exist' % path
+
+        imgs.append(load_image(path, opt))
+
+    return imgs
+# END load_images
+############################################################################################
+
+############################################################################################
+def load_image(image_path, opt):
     """
     use cv2 module to load the grayscale of an image with binary values.
     output: numpy ndarray of image if it exists, with binary values.
     """
-
     if not os.path.isfile(image_path):
         raise OSError("Image %s not found" % image_path)
 
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
-    if binary:
+    #   Resize image, if necessary
+    shape = (opt.height, opt.width)
+    if image.shape != shape:
+        image = cv2.resize(image, shape)
+
+    #   Binary methods
+    binary_methods = ['dice', 'sensitivity', 'specificity', 'precision', 'f1_score', 'accuracy']
+    if opt.method.lower() in binary_methods:
         ret, otsu = cv2.threshold(image,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         
         #   Since we are interested in the "ink", which shows up as black, or 0,
@@ -241,6 +217,182 @@ def load_image(image_path, binary=True):
         cv2.imwrite('./misc/img/%s.png'%dt, image)
     return image.astype(np.uint8)
 # END load_image
+############################################################################################
+
+############################################################################################
+def sensitivity(targ, pred, empty_score=1.0):
+    """
+    Computes the sensitivity, the ratio of positives for which we accurately predicted positive.
+    Formula TP / (TP + FN)
+    Parameters
+    ----------
+    targ : array-like, bool or numeric
+    pred : array-like, bool or numeric
+    Returns
+    -------
+    sensitivity : float
+        also called the true positive rate, the recall, or probability of detection
+        Maximum detection of positives = 1
+        No detection of positives = 0
+        Target is empty (sum eq to zero) = empty_score
+    """
+    if targ.shape != pred.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    if pred.sum() == 0 or targ.sum() == 0:
+        return empty_score
+
+    # Compute Sensitivity
+    mask = np.where(targ>0)
+    return (pred[mask].sum() / targ.sum())
+# END sensitivity
+############################################################################################
+
+############################################################################################
+def specificity(targ, pred, empty_score=1.0):
+    """
+    Computes the specificity, the ratio of negatives for which we accurately predicted negative.
+    Copy-pasta of sensitivity, using np.invert.
+    Formula TN / (TN + FP)
+    Parameters
+    ----------
+    targ : array-like, bool or numeric
+    pred : array-like, bool or numeric
+    Returns
+    -------
+    specificity : float
+        also called the true negative rate
+        Maximum detection of negatives = 1
+        No detection of positives = 0
+        Target is empty (sum eq to zero) = empty_score
+    """
+    if targ.shape != pred.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    if pred.sum() == 0 or targ.sum() == 0:
+        return empty_score
+
+    # Compute Specificity
+    mask = np.where(targ==0)
+    return (np.invert(pred)[mask].sum() / np.invert(targ).sum())
+# END specificity
+############################################################################################
+
+############################################################################################
+def precision(targ, pred, empty_score=1.0):
+    """
+    Computes the precision, the ratio of correctly-predicted positives to total predicted positives.
+    Formula TP / (TP + FP)
+    Parameters
+    ----------
+    targ : array-like, bool or numeric
+    pred : array-like, bool or numeric
+    Returns
+    -------
+    precision : float
+        Maximum Positive Prediction Rate = 1
+        Poorest PPR = 0
+        Target is empty (sum eq to zero) = empty_score
+    """
+    if targ.shape != pred.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    if pred.sum() == 0 or targ.sum() == 0:
+        return empty_score
+
+    # Compute Precision
+    mask = np.where(targ>0)
+    return (pred[mask].sum() / pred.sum())
+# END precision
+############################################################################################
+
+############################################################################################
+def f1_score(targ, pred, empty_score=0.0):
+    """
+    Computes the f1 score, the harmonic mean of the precision and recall (or sensitivity).
+    Parameters
+    ----------
+    targ : array-like, bool or numeric
+    pred : array-like, bool or numeric
+    Returns
+    -------
+    f1 score : float
+        best score = 1
+        worst score = 0
+        Target is empty (sum eq to zero) = empty_score
+    """
+    prec = precision(targ, pred)
+    recall = sensitivity(targ, pred)
+
+    if prec + recall == 0:
+        return empty_score
+
+    return 2 * (prec*recall) / (prec+recall)
+# END f1_score
+############################################################################################
+
+############################################################################################
+def accuracy(targ, pred, empty_score=0.0):
+    """
+    Computes accuracy between target and prediction array
+    Parameters
+    ----------
+    targ : array-like, bool or numeric
+    pred : array-like, bool or numeric
+    Returns
+    -------
+    accuracy : float
+        Best accuracy = 1.0
+        Worst Accuracy = 1.0
+        Target is empty (sum eq to zero) = empty_score
+    """
+    if targ.shape != pred.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    return (targ==pred).mean()
+
+# END accuracy
+############################################################################################
+
+############################################################################################
+def dice(im1, im2, empty_score=1.0):
+    """
+    Computes the Dice coefficient, a measure of set similarity.
+    Borrowed from https://gist.github.com/brunodoamaral/e130b4e97aa4ebc468225b7ce39b3137
+    Parameters
+    ----------
+    im1 : array-like, bool
+        Any array of arbitrary size. If not boolean, will be converted.
+    im2 : array-like, bool
+        Any other array of identical size. If not boolean, will be converted.
+    Returns
+    -------
+    dice : float
+        Dice coefficient as a float on range [0,1].
+        Maximum similarity = 1
+        No similarity = 0
+        Both are empty (sum eq to zero) = empty_score
+        
+    Notes
+    -----
+    The order of inputs for `dice` is irrelevant. The result will be
+    identical if `im1` and `im2` are switched.
+    """
+    im1 = np.asarray(im1).astype(np.bool)
+    im2 = np.asarray(im2).astype(np.bool)
+
+    if im1.shape != im2.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    im_sum = im1.sum() + im2.sum()
+    if im_sum == 0:
+        return empty_score
+
+    # Compute Dice coefficient
+    intersection = np.logical_and(im1, im2)
+
+    return (2. * intersection.sum() / im_sum)
+# END dice
 ############################################################################################
 
 ############################################################################################
@@ -277,10 +429,5 @@ if __name__ == "__main__":
 
     target_images = load_images([os.path.join(opt.target_dir, f) for f in target_filenames], opt)
     sketch_images = load_images([os.path.join(opt.sketch_dir, f) for f in sketch_filenames], opt)
-
-    #   Resize images, if necessary
-    for i in range(len(target_images)):
-        if target_images[i].shape != sketch_images[i].shape:
-            sketch_images[i] = cv2.resize(sketch_images[i], target_images[i].shape)
 
     evals = evaluate(target_images, sketch_images, method=opt.method)
