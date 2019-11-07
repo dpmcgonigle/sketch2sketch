@@ -7,7 +7,11 @@
     See OPTIONS and FUNCTIONS sections for lists of each.
 
     Examples:   (d) means already a default
+        MCLAPTOP
         ./evaluate.py --target_dir /mnt/d/data/sketch_data/testing/unaligned_sketchy_sm/val_targets --sketch_dir /mnt/d/data/sketch_data/checkpoints/fall/photosketch_5k1x/fake_A --debug all
+        MCSLAPPY
+        python ./evaluate.py --target_dir /data/data/sketch_data/testdata/unaligned_sketchy_sm/val_targets --target_ext jpg --sketch_dir /data/data/sketch_data/checkpoints/ps5k_aug_hed_lsgan/fake_A_sketchy --sketch_ext png --debug all
+        python ./evaluate.py --target_dir /data/data/sketch_data/photo_sketching/ps5k_aug_hed_unaligned/val_targets --target_ext png --sketch_dir /data/data/sketch_data/checkpoints/ps5k_aug_hed_lsgan/fake_A --sketch_ext png --debug all --method precision
 """
 import argparse
 import os, sys
@@ -162,7 +166,7 @@ def load_filename_sets(opt):
     #   Ensure all images in target dir are in sketch_dir
     for f in target_filenames:
         sketch = os.path.splitext(f)[0] + '.%s'%opt.sketch_ext
-        debug('TARGET: %s, SKETCH: %s'%(f,sketch))
+        #debug('TARGET: %s, SKETCH: %s'%(f,sketch))
         assert sketch in sketch_filenames, 'ERROR, sketch dir must contain all images in target dir.'
 
     debug('All TARGET images in %s found in %s' % (opt.target_dir, opt.sketch_dir))
@@ -408,7 +412,7 @@ def evaluate(target_images, sketch_images, method='dice'):
     evals = []
     for i in range(len(target_images)):
         func = getattr(sys.modules[__name__], method)
-        debug('target_image shape: %s, sketch_image shape: %s' % (target_images[i].shape, sketch_images[i].shape))
+        #debug('target_image shape: %s, sketch_image shape: %s' % (target_images[i].shape, sketch_images[i].shape))
         loss = func(target_images[i], sketch_images[i])
         evals.append(loss)
 
@@ -431,3 +435,7 @@ if __name__ == "__main__":
     sketch_images = load_images([os.path.join(opt.sketch_dir, f) for f in sketch_filenames], opt)
 
     evals = evaluate(target_images, sketch_images, method=opt.method)
+
+    print('Mean %s: %.03f' % (opt.method, evals.mean()))
+    print('Min %s: %.03f' % (opt.method, evals.min()))
+    print('Max %s: %.03f' % (opt.method, evals.max()))
