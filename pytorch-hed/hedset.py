@@ -7,14 +7,14 @@
 #
 #   EXAMPLE
 #   ./hedset.py --datadir /data/data/sketch_data/sketchydb/sketchydb_2x --mode train --side B --procs 5
-#   ./hedset.py --datadir /data/data/sketch_data/photo_sketching/photo_sketching_5k --mode train --side A --procs 2
+#   ./hedset.py --datadir /data/data/sketch_data/photo_sketching/photo_sketching_5k --mode train --side A --procs 2 --invert --binarize
 ###################################################################################
 
 import os, sys
 from subprocess import Popen, PIPE
 from glob import glob
 import multiprocessing as mp
-from run import edge
+from run import edge_aligned, edge_unaligned
 import argparse
 
 ###################################################################################
@@ -22,12 +22,20 @@ import argparse
 #   Process Individual Image
 #
 ###################################################################################
-def process_image(source, dest, side):
+def process_image(source, dest, side, img_type, invert=False, binarize=False):
     print("======================================================================")
-    print("PID %d: EDGE MAP FOR %s ===> %s (side %s)" % (os.getpid(), source, dest, side))
-    print("call = edge(\"%s\", \"%s\", \"%s\", \"%s\")" % ("bsds500", source, dest, side))
+    if img_type == 'aligned':
+        print("PID %d: EDGE MAP FOR %s ===> %s (side %s)" % (os.getpid(), source, dest, side))
+    else:
+        print("PID %d: EDGE MAP FOR %s ===> %s (%s)" % (os.getpid(), source, dest, img_type))
     #   arguments_strModel, arguments_strIn, arguments_strOut, arguments_strSide
-    edge("bsds500", source, dest, side)
+
+    if img_type == "aligned":
+        print('call: edge_aligned("bsds500", %s, %s, %s, %s)'%(source, dest, side, str(invert)))
+        edge_aligned("bsds500", source, dest, side, arguments_invert=invert, arguments_binarize=binarize)
+    elif img_type == "unaligned":
+        print('call: edge_unaligned("bsds500", %s, %s, %s)'%(source, dest, str(invert)))
+        edge_unaligned("bsds500", source, dest, arguments_invert=invert, arguments_binarize=binarize)
     """
     call = "python run.py --model bsds500 --in %s --out %s --side %s" % (image, os.path.join(newpath, imgname), side)
     print(call)
@@ -50,7 +58,10 @@ if __name__ == "__main__":
     parser.add_argument('--datadir', type=str, required=True, default=None, help='Image dir (reqd)')
     parser.add_argument('--mode', type=str, default='train', help='[train|val|test]')
     parser.add_argument('--side', type=str, default='A', help='[A|B]')
+    parser.add_argument('--img_type', type=str, default='aligned', help='[aligned|unaligned]')
     parser.add_argument('--procs', type=int, default=2, help='Number of processes (should be limited by amount of RAM on GPU; ~2GB per image I think.')
+    parser.add_argument('--invert', action='store_true', help='Invert the black and white so that edges are black.')
+    parser.add_argument('--binarize', action='store_true', help='Binarize the output by rounding.')
     args = parser.parse_args()
 
     #   Get CPUs - can't use cpu_count since I will run out of memory 
@@ -59,6 +70,9 @@ if __name__ == "__main__":
     mode = args.mode
     side = args.side
     dirname = args.datadir
+    img_type = args.img_type
+    invert = args.invert
+    binarize = args.binarize
 
     #   Check Args
     assert os.path.exists(dirname), "Directory %s doesn't exist" % dirname
@@ -81,11 +95,15 @@ if __name__ == "__main__":
     pool = mp.Pool(processes=processes)
 
     for count,image in enumerate(images):
+
         source = image
         dest = os.path.join(newpath, os.path.basename(image))
+
+        process_image(source, dest, side, img_type, invert)
+
         #process_image(source, dest, side)
         #proc = mp.Process(target=process_image, args=(source, dest, side, ))
-        pool.apply_async(process_image, args=(source, dest, side, ))
+        pool.apply_async(process_image, args=(source, dest, side, img_type, invert, binarize, ))
         #procs.append(proc)
         #proc.start()
         #if count > 10:

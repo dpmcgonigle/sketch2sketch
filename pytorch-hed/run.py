@@ -120,7 +120,7 @@ def estimate(tensorInput, arguments_strModel):
 
 ##########################################################
 
-def edge(arguments_strModel, arguments_strIn, arguments_strOut, arguments_strSide):
+def edge_aligned(arguments_strModel, arguments_strIn, arguments_strOut, arguments_strSide, arguments_invert, arguments_binarize=False):
 
     assert(int(str('').join(torch.__version__.split('.')[0:3])) >= 41) # requires at least pytorch version 0.4.1
     torch.set_grad_enabled(False) # make sure to not compute gradients for computational performance
@@ -141,10 +141,55 @@ def edge(arguments_strModel, arguments_strIn, arguments_strOut, arguments_strSid
 
     tensorOutput = estimate(tensorInput, arguments_strModel)
 
-    image[:, :, start:end] = tensorOutput.clamp(0.0, 1.0).numpy()
+    if arguments_invert:
+        if arguments_binarize:
+            #   ^1 is bitwise xor
+            image[:, :, start:end] = (tensorOutput.clamp(0.0, 1.0).round().int()^1).numpy()
+            #image[:, :, start:end] = (tensorOutput.clamp(0.0, 1.0).ceil().int()^1).numpy()
+        else:
+            image[:, :, start:end] = (1 - tensorOutput.clamp(0.0, 1.0)).numpy()
+    else:
+        if arguments_binarize:
+            image[:, :, start:end] = tensorOutput.clamp(0.0, 1.0).round().numpy()
+            image[:, :, start:end] = tensorOutput.clamp(0.0, 1.0).ceil().numpy()
+        else:
+            image[:, :, start:end] = tensorOutput.clamp(0.0, 1.0).numpy()
 
     PIL.Image.fromarray((image.transpose(1, 2, 0)[:, :, 0] * 255.0).astype(numpy.uint8)).save(arguments_strOut)
-    # end edge
+    # end edge_aligned
+##########################################################
+
+##########################################################
+
+def edge_unaligned(arguments_strModel, arguments_strIn, arguments_strOut, arguments_invert, arguments_binarize=False):
+
+    assert(int(str('').join(torch.__version__.split('.')[0:3])) >= 41) # requires at least pytorch version 0.4.1
+    torch.set_grad_enabled(False) # make sure to not compute gradients for computational performance
+    torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
+
+    image = numpy.array(PIL.Image.open(arguments_strIn))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0)
+
+    tensorInput = torch.FloatTensor(image)
+
+    tensorOutput = estimate(tensorInput, arguments_strModel)
+
+
+    if arguments_invert:
+        if arguments_binarize:
+            #   ^1 is bitwise xor
+            image = (tensorOutput.clamp(0.0, 1.0).round().int()^1).numpy()
+            #image = (tensorOutput.clamp(0.0, 1.0).ceil().int()^1).numpy()
+        else:
+            image = (1 - tensorOutput.clamp(0.0, 1.0)).numpy()
+    else:
+        if arguments_binarize:
+            image = tensorOutput.clamp(0.0, 1.0).round().numpy()
+            #image = tensorOutput.clamp(0.0, 1.0).ceil().numpy()
+        else:
+            image = tensorOutput.clamp(0.0, 1.0).numpy()
+
+    PIL.Image.fromarray((image.transpose(1, 2, 0)[:, :, 0] * 255.0).astype(numpy.uint8)).save(arguments_strOut)
+    # end edge_unaligned
 ##########################################################
 
 if __name__ == '__main__':
